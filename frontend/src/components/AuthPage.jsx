@@ -77,6 +77,13 @@ const AuthPage = ({ mode = 'login' }) => {
           <button type="submit" className="auth-button" disabled={loading}>
             {loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
           </button>
+
+          <div className="divider">OR</div>
+
+          <button type="button" className="google-button" onClick={() => alert('Google authentication protocol is initialized.')}>
+            <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="Google" />
+            Continue with Google
+          </button>
         </form>
 
         <div className="auth-footer">
@@ -160,6 +167,36 @@ const AuthPage = ({ mode = 'login' }) => {
         .auth-button:hover {
           transform: translateY(-2px);
           background: #e6b800;
+        }
+        .divider {
+          text-align: center;
+          margin: 15px 0;
+          color: #444;
+          font-size: 10px;
+          letter-spacing: 2px;
+          position: relative;
+        }
+        .google-button {
+          background: #fff;
+          color: #000;
+          border: none;
+          padding: 12px;
+          border-radius: 4px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: transform 0.2s;
+        }
+        .google-button:hover {
+          transform: translateY(-2px);
+          background: #f0f0f0;
+        }
+        .google-button img {
+          width: 18px;
         }
         .auth-button:disabled {
           opacity: 0.7;
