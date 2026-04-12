@@ -1,114 +1,146 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import API_BASE from '../config';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
+import { API_BASE } from '../config';
+import ChatWidget from './ChatWidget';
+import HistoryView from './HistoryView';
+import AnalyticsView from './AnalyticsView';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState('chat');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [totalSpend, setTotalSpend] = useState(0);
 
-export default function Dashboard({ refreshTrigger, viewMobile }) {
-  const [data, setData] = useState({
-    totalThisMonth: 0,
-    spendByCategory: {},
-    recentTransactions: []
-  });
-
-  const fetchAnalytics = async () => {
+  const fetchSummary = async () => {
     try {
-      const url = viewMobile ? `${API_BASE}/api/analytics?contactNumber=${encodeURIComponent(viewMobile)}` : `${API_BASE}/api/analytics`;
-      const res = await axios.get(url);
-      setData(res.data);
+      const res = await axios.get(`${API_BASE}/api/analytics`);
+      setTotalSpend(res.data.totalThisMonth || 0);
     } catch (err) {
-      console.error("Failed to fetch analytics", err);
+      console.error(err);
     }
   };
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [refreshTrigger, viewMobile]);
+    fetchSummary();
+  }, [refreshTrigger]);
 
-  const chartData = {
-    labels: Object.keys(data.spendByCategory),
-    datasets: [
-      {
-        data: Object.values(data.spendByCategory),
-        backgroundColor: [
-          '#ffe792', // Primary
-          'rgba(255, 231, 146, 0.6)', 
-          'rgba(255, 231, 146, 0.2)',
-        ],
-        borderColor: [
-          '#ffe792',
-          'rgba(255, 231, 146, 0.6)',
-          'rgba(255, 231, 146, 0.2)',
-        ],
-        borderWidth: 0,
-      },
-    ],
+  const handleAction = (action) => {
+    if (action === "REFRESH") {
+      setRefreshTrigger(p => p + 1);
+    }
   };
 
   return (
-    <div className="analytics-side">
-      <div>
-        <h2 className="label-md" style={{ marginBottom: '1rem' }}>
-          {viewMobile ? `Dashboard (Mobile: ${viewMobile})` : 'Global Overview'}
-        </h2>
-        
-        <div className="metrics-grid">
-          <div className="metric-card" style={{ flex: 1 }}>
-            <h3 className="label-md">Total This Month</h3>
-            {/* Massive precision display */}
-            <div className="display-lg" style={{ marginTop: '0.5rem', color: 'var(--primary)' }}>
-              ${data.totalThisMonth.toFixed(2)}
-            </div>
-          </div>
-          
-          <div className="metric-card" style={{ flex: 1.5 }}>
-             <h3 className="label-md">Spend by Category</h3>
-             <div className="chart-container" style={{ height: '200px' }}>
-                {Object.keys(data.spendByCategory).length > 0 ? (
-                   <Doughnut data={chartData} options={{ 
-                      maintainAspectRatio: false, 
-                      cutout: '75%',
-                      plugins: {
-                        legend: { position: 'right', labels: { color: '#ababab', font: { family: 'Inter', size: 12 } } }
-                      }
-                   }} />
-                ) : (
-                   <p className="label-md" style={{ marginTop: '2rem' }}>No Data Available</p>
-                )}
-             </div>
+    <div className="dashboard-container">
+      {/* SIDEBAR */}
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-header">
+          <div className="summary-card">
+            <span className="summary-label">TOTAL_SPEND_MONTH</span>
+            <span className="summary-value">₹{totalSpend.toFixed(2)}</span>
           </div>
         </div>
-      </div>
 
-      <div className="metric-card" style={{ marginTop: '2rem' }}>
-        <h3 className="label-md">Recent Transactions</h3>
-        {data.recentTransactions.length > 0 ? (
-            <div className="transaction-list">
-            {data.recentTransactions.map(tx => (
-                <div key={tx._id} className="transaction-item">
-                    <div>
-                        <div style={{ color: 'var(--on-surface)', fontWeight: '600', fontSize: '1rem' }}>
-                          {tx.category}
-                        </div>
-                        <div className="label-md" style={{ marginTop: '0.25rem' }}>
-                          {tx.date} • {tx.cardType}
-                        </div>
-                        {viewMobile && <div className="label-md" style={{ textTransform: 'none', color: 'var(--error)' }}>
-                          ID: {tx._id}
-                        </div>}
-                    </div>
-                    <div style={{ color: 'var(--on-surface)', fontSize: '1.25rem', fontWeight: '500' }}>
-                        ${tx.amount.toFixed(2)}
-                    </div>
-                </div>
-            ))}
-            </div>
-        ) : (
-             <p className="label-md" style={{ marginTop: '1rem' }}>No transactions recorded.</p>
+        <nav className="sidebar-nav">
+          <button 
+            className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            AI_ASSISTANT
+          </button>
+          <button 
+            className={`nav-btn ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            LEDGER_HISTORY
+          </button>
+          <button 
+            className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            DATA_INSIGHTS
+          </button>
+        </nav>
+      </aside>
+
+      {/* VIEWPORT */}
+      <section className="dashboard-viewport">
+        {activeTab === 'chat' && (
+          <ChatWidget onAction={handleAction} />
         )}
-      </div>
+        {activeTab === 'history' && (
+          <HistoryView refreshTrigger={refreshTrigger} />
+        )}
+        {activeTab === 'analytics' && (
+          <AnalyticsView refreshTrigger={refreshTrigger} />
+        )}
+      </section>
+
+      <style jsx="true">{`
+        .dashboard-container {
+          display: flex;
+          height: calc(100vh - 70px); /* 70px is nav height */
+          background: #000;
+        }
+        .dashboard-sidebar {
+          width: 300px;
+          border-right: 1px solid #111;
+          display: flex;
+          flex-direction: column;
+          padding: 30px;
+        }
+        .sidebar-header {
+          margin-bottom: 50px;
+        }
+        .summary-card {
+          padding: 20px;
+          background: #0a0a0a;
+          border: 1px solid #1a1a1a;
+          border-radius: 4px;
+        }
+        .summary-label {
+          display: block;
+          font-size: 8px;
+          color: #444;
+          letter-spacing: 1px;
+          margin-bottom: 5px;
+        }
+        .summary-value {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: #fff;
+        }
+        .sidebar-nav {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .nav-btn {
+          background: transparent;
+          border: none;
+          color: #666;
+          text-align: left;
+          padding: 15px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 2px;
+          cursor: pointer;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+        .nav-btn:hover {
+          color: #fff;
+          background: #0a0a0a;
+        }
+        .nav-btn.active {
+          background: #111;
+          color: #ffcc00;
+        }
+        .dashboard-viewport {
+          flex: 1;
+          overflow-y: auto;
+          background: #000;
+        }
+      `}</style>
     </div>
   );
 }

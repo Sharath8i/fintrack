@@ -1,28 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
+const auth = require('../middleware/authMiddleware');
 
 // @route   GET /api/analytics
-// @desc    Get analytics for dashboard (spending by category, total this month, last 5)
-router.get('/', async (req, res) => {
+// @desc    Get analytics for dashboard (private)
+router.get('/', auth, async (req, res) => {
   try {
-    const { contactNumber } = req.query;
-    let matchQuery = {};
-    if (contactNumber) {
-        const digitsOnly = contactNumber.replace(/\D/g, '').slice(-10);
-        if(digitsOnly.length === 10) {
-            matchQuery.contactNumber = { $regex: new RegExp(digitsOnly + '$') };
-        }
-    }
+    const matchQuery = { userId: req.userId };
 
     // 1. Last 5 transactions
     const recentTransactions = await Expense.find(matchQuery)
-      .sort({ createdAt: -1 })
+      .sort({ date: -1 })
       .limit(5);
 
-    // 2. Total this month
-    // Need to parse string dates DD-MM-YYYY carefully. Since it's stored as String, it's safer to fetch all or use Aggregation if strict. 
-    // Wait, let's fetch all matched expenses and calculate since typical personal finance records for one user are small.
+    // 2. Fetch all for user to calculate totals
     const allExpenses = await Expense.find(matchQuery);
     
     const currentMonth = new Date().getMonth() + 1;
@@ -32,16 +24,10 @@ router.get('/', async (req, res) => {
     const categoryTotals = {};
     const cardTotals = {};
     const monthWiseSpend = {};
-    const monthWiseCategorySpend = {};
     
     allExpenses.forEach(exp => {
       // Amount sum by category
       categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
-
-      // Amount sum by card type
-      if (exp.cardType) {
-         cardTotals[exp.cardType] = (cardTotals[exp.cardType] || 0) + exp.amount;
-      }
 
       // Extract Month and Year
       // Date format: DD-MM-YYYY
@@ -53,9 +39,6 @@ router.get('/', async (req, res) => {
         
         // Month-wise aggregation
         monthWiseSpend[monthKey] = (monthWiseSpend[monthKey] || 0) + exp.amount;
-        
-        monthWiseCategorySpend[monthKey] = monthWiseCategorySpend[monthKey] || {};
-        monthWiseCategorySpend[monthKey][exp.category] = (monthWiseCategorySpend[monthKey][exp.category] || 0) + exp.amount;
 
         if (mm === currentMonth && yyyy === currentYear) {
             totalThisMonth += exp.amount;
@@ -66,10 +49,9 @@ router.get('/', async (req, res) => {
     res.json({
         totalThisMonth,
         spendByCategory: categoryTotals,
-        spendByCard: cardTotals,
         monthWiseSpend,
-        monthWiseCategorySpend,
-        recentTransactions
+        recentTransactions,
+        totalExpenses: allExpenses.length
     });
 
   } catch (err) {
@@ -78,3 +60,4 @@ router.get('/', async (req, res) => {
 });
 
 module.exports = router;
+

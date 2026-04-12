@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
+const auth = require('../middleware/authMiddleware');
 
 // @route   POST /api/expenses
 // @desc    Create a new expense
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const newExpense = new Expense(req.body);
+    const newExpense = new Expense({ ...req.body, userId: req.userId });
     const savedExpense = await newExpense.save();
     res.status(201).json(savedExpense);
   } catch (err) {
@@ -19,27 +20,14 @@ router.post('/', async (req, res) => {
 });
 
 // @route   GET /api/expenses
-// @desc    Get expenses (optionally filter by mobile number)
-router.get('/', async (req, res) => {
+// @desc    Get expenses (private to user)
+router.get('/', auth, async (req, res) => {
   try {
-    const { contactNumber } = req.query;
-    let matchQuery = {};
-
-    if (contactNumber) {
-      let searchNum = contactNumber.trim();
-      if (!searchNum.startsWith('+')) searchNum = '+' + searchNum.replace(/\s+/g, '');
-      
-      const digitsOnly = contactNumber.replace(/\D/g, '').slice(-10);
-      if(digitsOnly.length !== 10) {
-          return res.status(400).json({ error: 'Invalid contact number format' });
-      }
-      matchQuery.contactNumber = { $regex: new RegExp(digitsOnly + '$') };
-    }
-
-    const expenses = await Expense.find(matchQuery).sort({ createdAt: -1 });
+    // Users only see their own data
+    const expenses = await Expense.find({ userId: req.userId }).sort({ date: -1 });
 
     if (expenses.length === 0) {
-        return res.status(404).json({ error: 'No expenses found.' });
+        return res.json([]); // Return empty array instead of 404 for better UX
     }
 
     res.json(expenses);
@@ -49,8 +37,8 @@ router.get('/', async (req, res) => {
 });
 
 // @route   PUT /api/expenses/:id
-// @desc    Modify Expense Date (as per rubric: offer Change Date (PUT))
-router.put('/:id', async (req, res) => {
+// @desc    Modify Expense Date (private)
+router.put('/:id', auth, async (req, res) => {
   try {
     const { date } = req.body;
     if (!date) {
@@ -62,8 +50,8 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ error: 'Date must follow DD-MM-YYYY format exactly' });
     }
 
-    const updatedExpense = await Expense.findByIdAndUpdate(
-      req.params.id,
+    const updatedExpense = await Expense.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId }, // Security: must match user
       { date },
       { new: true, runValidators: true }
     );
@@ -76,10 +64,10 @@ router.put('/:id', async (req, res) => {
 });
 
 // @route   DELETE /api/expenses/:id
-// @desc    Delete Expense
-router.delete('/:id', async (req, res) => {
+// @desc    Delete Expense (private)
+router.delete('/:id', auth, async (req, res) => {
   try {
-    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
+    const deletedExpense = await Expense.findOneAndDelete({ _id: req.params.id, userId: req.userId });
     if (!deletedExpense) { return res.status(404).json({ error: 'Expense not found' }); }
     res.json({ message: 'Expense deleted successfully' });
   } catch (err) {
@@ -88,3 +76,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+
