@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 
 const AuthPage = ({ mode = 'login' }) => {
   const [email, setEmail] = useState('');
@@ -29,6 +30,24 @@ const AuthPage = ({ mode = 'login' }) => {
       setLoading(false);
     }
   };
+
+  const { googleLogin: performGoogleLogin } = useAuth();
+
+  const handleGoogleSuccess = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      setError('');
+      try {
+        await performGoogleLogin(tokenResponse.access_token);
+        navigate('/');
+      } catch (err) {
+        setError('Google Login failed: ' + (err.response?.data?.message || err.message));
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => setError('Google Authentication failed')
+  });
 
   return (
     <div className="auth-container">
@@ -80,7 +99,7 @@ const AuthPage = ({ mode = 'login' }) => {
 
           <div className="divider">OR</div>
 
-          <button type="button" className="google-button" onClick={() => alert('Google authentication protocol is initialized.')}>
+          <button type="button" className="google-button" onClick={() => handleGoogleSuccess()} disabled={loading}>
             <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="Google" />
             Continue with Google
           </button>
