@@ -6,7 +6,6 @@ import { useGoogleLogin } from '@react-oauth/google';
 const AuthPage = ({ mode = 'login' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -21,7 +20,8 @@ const AuthPage = ({ mode = 'login' }) => {
       if (mode === 'login') {
         await login(email, password);
       } else {
-        await register(name, email, password);
+        await register('', email, password); // Name will be filled later in profile
+        localStorage.setItem('is_new_signup', 'true');
       }
       navigate('/');
     } catch (err) {
@@ -58,18 +58,7 @@ const AuthPage = ({ mode = 'login' }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          {mode === 'register' && (
-            <div className="input-group">
-              <label>Full Name</label>
-              <input 
-                type="text" 
-                placeholder="Sharath KH" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                required 
-              />
-            </div>
-          )}
+
           <div className="input-group">
             <label>Email Address</label>
             <input 

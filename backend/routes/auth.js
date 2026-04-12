@@ -13,7 +13,11 @@ router.post('/register', async (req, res) => {
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = new User({ name, email, password });
+    user = new User({ 
+      name: name || '', 
+      email, 
+      password 
+    });
     await user.save();
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
@@ -74,6 +78,41 @@ router.post('/google', async (req, res) => {
   } catch (err) {
     console.error('Google Auth Error:', err);
     res.status(500).json({ message: 'Google authentication failed: ' + err.message });
+  }
+});
+
+// Get Profile
+router.get('/me', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token' });
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password');
+    res.json(user);
+  } catch (err) {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+});
+
+// Update Profile
+router.post('/update', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token' });
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { name, phone } = req.body;
+    
+    const user = await User.findByIdAndUpdate(
+      decoded.userId,
+      { name, phone },
+      { new: true }
+    ).select('-password');
+    
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Update failed: ' + err.message });
   }
 });
 

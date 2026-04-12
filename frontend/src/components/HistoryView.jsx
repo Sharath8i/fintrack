@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config';
+import { Download } from 'lucide-react';
 
 const ExpenseModal = ({ expense, onClose }) => {
   if (!expense) return null;
@@ -137,11 +138,55 @@ export default function HistoryView({ refreshTrigger }) {
     fetchHistory();
   }, [refreshTrigger]);
 
+  const downloadExcel = () => {
+    if (!recentTransactions.length) return;
+
+    // CSV Headers
+    const headers = ["ID", "Date", "Category", "Amount (INR)", "Description", "Card Type", "Timestamp"];
+    
+    // Process Rows
+    const rows = recentTransactions.map(tx => [
+      tx.shortId,
+      tx.date,
+      tx.category,
+      tx.amount.toFixed(2),
+      `"${(tx.description || "").replace(/"/g, '""')}"`, // Escape quotes for CSV
+      tx.cardType || "N/A",
+      new Date(tx.createdAt).toLocaleString()
+    ]);
+
+    // Construct CSV String
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    // Create Download Link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Precision_Ledger_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="history-view">
       <div className="section-header">
-        <h2 className="section-title">LEDGER_HISTORY</h2>
-        <div className="entry-count">{recentTransactions.length} ENTRIES FOUND</div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h2 className="section-title">LEDGER_HISTORY</h2>
+          <div className="entry-count">{recentTransactions.length} ENTRIES FOUND</div>
+        </div>
+        
+        {recentTransactions.length > 0 && (
+          <button className="export-btn" onClick={downloadExcel}>
+            <Download size={14} />
+            <span>EXPORT_TO_EXCEL</span>
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -194,8 +239,32 @@ export default function HistoryView({ refreshTrigger }) {
         }
         .entry-count {
           font-size: 10px;
-          color: #666;
-          letter-spacing: 1px;
+          color: #444;
+          letter-spacing: 1.5px;
+          font-weight: 800;
+          margin-top: 4px;
+        }
+        .export-btn {
+          background: #ffcc00;
+          border: none;
+          color: #000;
+          padding: 8px 16px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 1.5px;
+          border-radius: 2px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: transform 0.1s, opacity 0.1s;
+        }
+        .export-btn:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
+        }
+        .export-btn:active {
+          transform: translateY(0);
         }
         .transaction-grid {
           display: flex;

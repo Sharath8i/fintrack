@@ -4,6 +4,8 @@ import { API_BASE } from '../config';
 import ChatWidget from './ChatWidget';
 import HistoryView from './HistoryView';
 import AnalyticsView from './AnalyticsView';
+import OperationsView from './OperationsView';
+import FAQView from './FAQView';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('chat');
@@ -53,11 +55,19 @@ export default function Dashboard() {
           >
             LEDGER_HISTORY
           </button>
+
           <button 
             className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveTab('analytics')}
           >
             DATA_INSIGHTS
+          </button>
+          <div className="nav-divider" />
+          <button 
+            className={`nav-btn ${activeTab === 'faq' ? 'active' : ''}`}
+            onClick={() => setActiveTab('faq')}
+          >
+            HELP_FAQ
           </button>
         </nav>
       </aside>
@@ -70,23 +80,31 @@ export default function Dashboard() {
         {activeTab === 'history' && (
           <HistoryView refreshTrigger={refreshTrigger} />
         )}
+
         {activeTab === 'analytics' && (
           <AnalyticsView refreshTrigger={refreshTrigger} />
+        )}
+        {activeTab === 'faq' && (
+          <FAQView />
         )}
       </section>
 
       <style jsx="true">{`
         .dashboard-container {
           display: flex;
-          height: calc(100vh - 70px); /* 70px is nav height */
+          flex: 1;
           background: #000;
+          overflow: hidden;
         }
         .dashboard-sidebar {
-          width: 300px;
+          width: 220px;
+          min-width: 180px;
           border-right: 1px solid #111;
           display: flex;
           flex-direction: column;
-          padding: 30px;
+          padding: 24px 20px;
+          background: #000;
+          flex-shrink: 0;
         }
         .sidebar-header {
           margin-bottom: 50px;
@@ -94,38 +112,42 @@ export default function Dashboard() {
         .summary-card {
           padding: 20px;
           background: #0a0a0a;
-          border: 1px solid #1a1a1a;
+          border: 1px solid #222;
           border-radius: 4px;
         }
         .summary-label {
           display: block;
           font-size: 8px;
           color: #444;
-          letter-spacing: 1px;
+          letter-spacing: 2px;
+          font-weight: 800;
           margin-bottom: 5px;
         }
         .summary-value {
-          font-size: 1.5rem;
-          font-weight: 800;
+          font-size: 1.6rem;
+          font-weight: 900;
           color: #fff;
+          font-family: 'Inter', sans-serif;
+          letter-spacing: -1px;
         }
         .sidebar-nav {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
         }
         .nav-btn {
           background: transparent;
           border: none;
-          color: #666;
+          color: #444;
           text-align: left;
-          padding: 15px;
-          font-size: 11px;
-          font-weight: 700;
+          padding: 12px 20px;
+          font-size: 10px;
+          font-weight: 800;
           letter-spacing: 2px;
           cursor: pointer;
-          border-radius: 4px;
+          border-radius: 2px;
           transition: all 0.2s;
+          text-transform: uppercase;
         }
         .nav-btn:hover {
           color: #fff;
@@ -138,7 +160,11 @@ export default function Dashboard() {
         .dashboard-viewport {
           flex: 1;
           overflow-y: auto;
+          overflow-x: hidden;
           background: #000;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
         }
       `}</style>
     </div>

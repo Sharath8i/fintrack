@@ -10,6 +10,10 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(function(req, res, next) {
+  console.log(req.method + ' ' + req.url);
+  next();
+});
 
 // Wait for DB connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/expense_tracker')

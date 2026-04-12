@@ -2,12 +2,145 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 import { useAuth } from '../AuthContext';
-import { Send, User as UserIcon, Mic } from 'lucide-react';
+import { Send, User as UserIcon, Mic, Plus, List, Edit2 } from 'lucide-react';
+
+const TASK_MENU = [
+  { label: 'CREATE EXPENSE', icon: <Plus size={14} />, message: '1' },
+  { label: 'VIEW EXPENSES',  icon: <List size={14} />, message: '2' },
+  { label: 'MODIFY/DELETE',  icon: <Edit2 size={14} />, message: '3' },
+];
+
+function TransactionDraftCard({ data, onConfirm, onEdit }) {
+  if (!data) return null;
+  const merchant = data.description || "Unspecified Merchant";
+  const category = data.category || "General";
+  const account = data.cardType || "Standard Account";
+  const amount = data.amount || 0;
+  const draftId = data.shortId || "NEW-TX";
+
+  return (
+    <div style={{
+      background: '#050505',
+      border: '1px solid #1a1a1a',
+      borderLeft: '4px solid #ffcc00',
+      borderRadius: 4,
+      padding: '24px',
+      marginTop: 8,
+      width: '100%',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: 2, color: '#fff', marginBottom: 4 }}>TRANSACTION DRAFT</div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1 }}>ID: {draftId}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: -1 }}>{amount}</div>
+          <div style={{ fontSize: 10, color: '#444', marginTop: -2 }}>₹</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>MERCHANT / DESC</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{merchant}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>CATEGORY</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{category}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>ACCOUNT</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{account}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>STATUS</div>
+          <div style={{ 
+            display: 'inline-block',
+            padding: '2px 6px',
+            background: 'rgba(255, 204, 0, 0.1)',
+            color: '#ffcc00',
+            fontSize: 8,
+            fontWeight: 900,
+            borderRadius: 2
+          }}>PENDING CONFIRMATION</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button 
+          onClick={onConfirm}
+          style={{
+            flex: 1,
+            background: '#ffcc00',
+            border: 'none',
+            color: '#000',
+            padding: '12px',
+            fontSize: 10,
+            fontWeight: 900,
+            letterSpacing: 1.5,
+            borderRadius: 2,
+            cursor: 'pointer'
+          }}
+        >CONFIRM ENTRY</button>
+        <button 
+          onClick={onEdit}
+          style={{
+            flex: 1,
+            background: '#0a0a0a',
+            border: '1px solid #222',
+            color: '#fff',
+            padding: '12px',
+            fontSize: 10,
+            fontWeight: 900,
+            letterSpacing: 1.5,
+            borderRadius: 2,
+            cursor: 'pointer'
+          }}
+        >EDIT DETAILS</button>
+      </div>
+    </div>
+  );
+}
+
+function TaskControlPanel({ onSelect }) {
+  return (
+    <div style={{
+      background: '#050505',
+      border: '1px solid #1a1a1a',
+      borderRadius: 4,
+      overflow: 'hidden',
+      marginTop: 8,
+      width: '100%',
+    }}>
+      <div style={{ fontSize: 9, color: '#444', letterSpacing: 2, fontWeight: 800, padding: '10px 14px 6px', borderBottom: '1px solid #111' }}>TASK CONTROL</div>
+      {TASK_MENU.map((item) => (
+        <button
+          key={item.label}
+          onClick={() => onSelect(item.message)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            width: '100%', background: 'transparent', border: 'none',
+            borderBottom: '1px solid #111', padding: '14px 16px',
+            cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 800,
+            letterSpacing: 1.5, textAlign: 'left', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#0a0a0a'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <span>{item.label}</span>
+          <span style={{ color: '#333' }}>{item.icon}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function ChatWidget({ onAction }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([
-    { text: `System online. Welcome, ${user?.name || 'Operator'}. How may I assist with your ledger today?`, isBot: true }
+    { isBot: true, isMenu: true, text: `Welcome back, ${user?.name?.split(' ')[0] || 'Operator'}. Select an operation below:` }
   ]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -35,10 +168,20 @@ export default function ChatWidget({ onAction }) {
     try {
       const res = await axios.post(`${API_BASE}/api/chat`, {
         sessionId,
-        message: text
+        message: text,
+        userContext: {
+          name: user?.name,
+          email: user?.email,
+          phone: user?.phone
+        }
       });
 
-      setMessages(prev => [...prev, { text: res.data.reply, isBot: true }]);
+      setMessages(prev => [...prev, { 
+        text: res.data.reply, 
+        isBot: true, 
+        isMenu: res.data.state === 'MENU',
+        draftData: res.data.draftData
+      }]);
 
       if (res.data.requiresAction) {
         onAction(res.data.requiresAction);
@@ -68,6 +211,16 @@ export default function ChatWidget({ onAction }) {
             </div>
             <div className="message-content">
               <div className="message-bubble">{m.text}</div>
+              {m.isMenu && m.isBot && (
+                <TaskControlPanel onSelect={(msg) => handleSend(msg)} />
+              )}
+              {m.draftData && m.isBot && (
+                <TransactionDraftCard 
+                  data={m.draftData} 
+                  onConfirm={() => handleSend("yes")}
+                  onEdit={() => setInput("change description to ")}
+                />
+              )}
               <div className="timestamp">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           </div>
@@ -128,6 +281,7 @@ export default function ChatWidget({ onAction }) {
           justify-content: center;
           border-radius: 2px;
           font-size: 14px;
+          color: #444;
           font-weight: 800;
         }
         .bot .avatar {
@@ -150,10 +304,12 @@ export default function ChatWidget({ onAction }) {
           font-size: 0.95rem;
           line-height: 1.5;
           white-space: pre-wrap;
+          color: #eee;
         }
         .user .message-bubble {
           background: #111;
           border-color: #222;
+          color: #fff;
           border-radius: 4px 0 4px 4px;
         }
         .timestamp {
@@ -189,7 +345,7 @@ export default function ChatWidget({ onAction }) {
         .voice-btn, .send-btn {
           background: transparent;
           border: none;
-          color: #666;
+          color: #444;
           padding: 8px;
           cursor: pointer;
           border-radius: 4px;

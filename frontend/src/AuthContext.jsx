@@ -10,16 +10,23 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Verify token/get user profile if needed
-      // For now, we trust the token exists
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) setUser(JSON.parse(savedUser));
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-    setLoading(false);
+    const init = async () => {
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        try {
+          const res = await axios.get(`${API_BASE}/api/auth/me`);
+          setUser(res.data);
+          localStorage.setItem('user', JSON.stringify(res.data));
+        } catch (err) {
+          const savedUser = localStorage.getItem('user');
+          if (savedUser) setUser(JSON.parse(savedUser));
+        }
+      } else {
+        delete axios.defaults.headers.common['Authorization'];
+      }
+      setLoading(false);
+    };
+    init();
   }, [token]);
 
   const login = async (email, password) => {
@@ -40,6 +47,13 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const updateProfile = async (data) => {
+    const res = await axios.post(`${API_BASE}/api/auth/update`, data);
+    setUser(res.data);
+    localStorage.setItem('user', JSON.stringify(res.data));
+    return res.data;
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -57,7 +71,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, googleLogin }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, googleLogin, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
