@@ -1,0 +1,35 @@
+[
+  {
+    "shortId": "A1B2C3",
+    "fullName": "Jane Doe",
+    "cardType": "Debit Card",
+    "category": "Food",
+    "amount": 25.50,
+    "description": "Lunch at Cafe",
+    "date": "06-04-2026",
+    "contactNumber": "+1 1234567890",
+    "email": "jane@example.com"
+  },
+  {
+    "shortId": "X9Y8Z7",
+    "fullName": "Jane Doe",
+    "cardType": "Credit Card",
+    "category": "Transport",
+    "amount": 15.00,
+    "description": "Uber ride to airport",
+    "date": "07-04-2026",
+    "contactNumber": "+1 1234567890",
+    "email": "jane@example.com"
+  },
+  {
+    "shortId": "M4N5P6",
+    "fullName": "Sarah Smith",
+    "cardType": "Debit Card",
+    "category": "Shopping",
+    "amount": 120.00,
+    "description": "New headphones",
+    "date": "08-04-2026",
+    "contactNumber": "+44 0987654321",
+    "email": "sarah@example.co.uk"
+  }
+]

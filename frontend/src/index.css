@@ -1,0 +1,403 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --surface-dim: #0e0e0e; /* Deepest black */
+  --surface-container-low: #141414; /* Slightly lighter, main center */
+  --surface-container-high: #1c1c1c; /* Panels / distinct areas */
+  --surface-container-highest: #262626; /* Hover / Inputs */
+  
+  --primary: #fde48b; /* Precision yellow */
+  --primary-container: #ffd709;
+  --on-primary: #1c1c1c;
+  
+  --on-surface: #ffffff;
+  --on-surface-variant: #a0a0a0;
+  
+  --error: #ff7351;
+  --error-dim: #d53d18;
+  
+  --ghost-border: rgba(255, 255, 255, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--surface-dim);
+  color: var(--on-surface);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, body, #root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* LEFT SIDEBAR */
+.sidebar {
+  width: 260px;
+  background-color: var(--surface-dim);
+  border-right: 1px solid var(--ghost-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar .brand {
+  padding: 1.5rem 2rem;
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.1em;
+}
+
+.sidebar .profile-badge {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--ghost-border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sidebar-nav {
+  padding: 2rem 0;
+  flex: 1;
+}
+
+.nav-item {
+  padding: 0.85rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--on-surface-variant);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+.nav-item:hover, .nav-item.active {
+  color: var(--on-surface);
+}
+
+.sidebar .upgrade-btn {
+  margin: 2rem;
+  background-color: var(--primary);
+  color: var(--on-primary);
+  border: none;
+  padding: 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* CENTER MAIN CONTENT */
+.main-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-container-low);
+  border-right: 1px solid var(--ghost-border);
+}
+
+.top-nav {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 2rem;
+  border-bottom: 1px solid var(--ghost-border);
+  gap: 2rem;
+}
+
+.top-nav a {
+  color: var(--on-surface-variant);
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.top-nav a:hover {
+  color: var(--on-surface);
+}
+.top-nav .avatar {
+  background-color: var(--surface-container-high);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--primary);
+}
+
+/* Liquid Capital Header */
+.finance-header {
+  padding: 2rem 3rem;
+  border-bottom: 1px solid var(--ghost-border);
+  display: flex;
+  gap: 4rem;
+}
+.finance-block p {
+  color: var(--on-surface-variant);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+.finance-block h1 {
+  font-size: 3.5rem;
+  letter-spacing: -0.05em;
+  margin: 0;
+  line-height: 1;
+}
+.finance-block h1 span {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-left: 0.5rem;
+  vertical-align: super;
+}
+
+/* RIGHT PANEL */
+.right-panel {
+  width: 340px;
+  background-color: var(--surface-container-low);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.panel-section {
+  margin-bottom: 3rem;
+}
+.panel-section h3 {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.task-button {
+  background-color: var(--surface-container-high);
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1rem;
+  margin-bottom: 0.5rem;
+  border: none;
+  color: var(--on-surface);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.task-button:hover {
+  background-color: var(--surface-container-highest);
+}
+.task-button .icon {
+  color: var(--primary);
+}
+
+/* Cards */
+.context-card {
+  background-color: var(--surface-dim);
+  padding: 1.25rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--ghost-border);
+}
+.context-card h4 {
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+.context-card p {
+  color: var(--primary);
+  font-size: 0.85rem;
+}
+
+.insight-box {
+  background-color: rgba(253, 228, 139, 0.05);
+  border: 1px solid rgba(253, 228, 139, 0.2);
+  padding: 1.5rem;
+}
+.insight-box h4 {
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+.insight-box p {
+  color: var(--on-surface-variant);
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+/* Precision Panel - Replaces typical cards/glassmorphism */
+.precision-panel {
+  background-color: var(--surface-container-low);
+  padding: 2rem;
+  border-radius: 0; /* Boxy editorial feel */
+  /* strictly no 1px borders, we use background contrast */
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 2px; /* sm corner radius */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-container);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--on-surface);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.75rem 1.5rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background-color: rgba(255,255,255,0.05);
+}
+
+/* Typography Scales */
+.display-lg {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--on-surface);
+  line-height: 1.1;
+}
+
+.label-md {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Forms */
+input {
+  width: 100%;
+  background-color: var(--surface-container-highest);
+  color: var(--on-surface);
+  border: none;
+  border-left: 2px solid var(--ghost-border);
+  padding: 0.875rem 1rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus {
+  border-left-color: var(--primary);
+}
+
+/* Chat Styles */
+.chat-messages {
+  height: 400px;
+  overflow-y: auto;
+  padding-right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Custom Scrollbar for void look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-container-highest);
+  border-radius: 3px;
+}
+
+.message {
+  max-width: 85%;
+  line-height: 1.6;
+}
+
+.message.user {
+  align-self: flex-end;
+  color: var(--on-surface);
+  font-size: 1.125rem;
+  font-weight: 500;
+  text-align: right;
+  border-right: 2px solid var(--primary);
+  padding-right: 1rem;
+}
+
+.message.bot {
+  align-self: flex-start;
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--surface-container-highest);
+}
+
+/* Task Pills */
+.task-pill {
+  display: inline-block;
+  background-color: var(--surface-container-highest);
+  color: var(--primary);
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.task-pill:hover {
+  background-color: rgba(255, 231, 146, 0.1);
+}

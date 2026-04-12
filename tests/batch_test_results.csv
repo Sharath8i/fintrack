@@ -1,0 +1,45 @@
+Test ID,Test Description,Test Category,Input,Expected Intent,Expected State After,Expected Missing Fields,Expected Result Status,Actual Result,Notes
+CR-001,Basic co-referencing - single message multiple entities,Co-Referencing,"I spent rs 50 on food today",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,"Agent extracted amount: 50, category: Food, date: 08-04-2026"
+CR-002,Multiple currency format - rs prefix,Co-Referencing,"paid rs. 125 for transport",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,Amount extracted: 125, category: Transport
+CR-003,INR format with card,Co-Referencing,"inr 75 for shopping with debit card",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,Amount: 75, category: Shopping, cardType: Debit Card
+CR-004,Rupee symbol format,Co-Referencing,"₹30 spent on food",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,"Amount extracted: 30, category: Food"
+CR-005,Decimal amounts,Co-Referencing,"spent ₹25.99 on transport today",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,"Amount: 25.99, category: Transport, date: today"
+CR-006,With card specification,Co-Referencing,"I spent 100 on food using my credit card",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,Amount: 100, category: Food, cardType: Credit Card
+CR-007,Full natural input,Co-Referencing,"paid 200 rupees for shopping with debit card today",CREATE_GATHER,CREATE_GATHER,fullName, contactNumber, email, description,Pass,Pass,All entities extracted: amount: 200, category: Shopping, cardType: Debit Card, date: today
+AM-001,Change amount mid-flow,Entity Amendment,"change amount to 75",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Amount updated from 50 to 75 in session state
+AM-002,Change category mid-flow,Entity Amendment,"change category to transport",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Category updated to Transport
+AM-003,Change card type,Entity Amendment,"change card to credit",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,CardType updated to Credit Card
+AM-004,Change name mid-flow,Entity Amendment,"change name to Jane Smith",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,FullName updated to "Jane Smith"
+AM-005,Change date mid-flow,Entity Amendment,"change date to 15-04-2026",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Date updated to 15-04-2026
+AM-006,Multiple amendments in one message,Entity Amendment,"change amount to 100 and change category to food",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Both amount and category updated in single message
+AM-007,Amendment in CONFIRM_SAVE state,Entity Amendment,"change amount to 60",CONFIRM_SAVE,CONFIRM_SAVE,same,Pass,Pass,Summary regenerated with new amount
+AM-008,Change description in CONFIRM_SAVE,Entity Amendment,"change description to dinner",CONFIRM_SAVE,CONFIRM_SAVE,same,Pass,Pass,Description updated in summary
+CRUD-001,Create expense via chat,CRUD,"yes" in CONFIRM_SAVE,CONFIRM_SAVE,MENU,None,Pass,Pass,POST /api/expenses called successfully, 201 Created
+CRUD-002,Read expenses by contact number,CRUD,"+1 2345678901" in VIEW_ASK_MOBILE,MENU,None,Pass,Pass,GET /api/expenses returned filtered results
+CRUD-003,Update expense date via API,CRUD,"PUT /api/expenses/:id with date body",N/A,N/A,None,Pass,Pass,Date updated successfully, 200 OK
+CRUD-004,Delete expense via API,CRUD,"DELETE /api/expenses/:id",N/A,N/A,None,Pass,Pass,Expense deleted, 200 OK
+CRUD-005,Read all expenses without filter,CRUD,"GET /api/expenses",N/A,N/A,None,Pass,Pass,All expenses returned
+CRUD-006,Analytics aggregation,CRUD,"GET /api/analytics",N/A,N/A,None,Pass,Pass,Returns totalThisMonth, spendByCategory, recentTransactions
+SM-001,Menu to Create flow,State Machine,"1" or "create",MENU,CREATE_GATHER,Pass,Pass,State transitioned to CREATE_GATHER
+SM-002,Menu to View flow,State Machine,"2" or "view",MENU,VIEW_ASK_MOBILE,Pass,Pass,State transitioned to VIEW_ASK_MOBILE
+SM-003,Menu to Modify flow,State Machine,"3" or "modify",MENU,MODIFY_ASK_MOBILE,Pass,Pass,State transitioned to MODIFY_ASK_MOBILE
+SM-004,Undo last action,State Machine,"undo",MENU,MENU,Pass,Pass,Last saved expense deleted, confirmation shown
+SM-005,Gather to Confirm flow,State Machine,All required fields provided,CREATE_GATHER,CONFIRM_SAVE,Pass,Pass,State transitioned after all fields collected
+SM-006,Confirm to Menu after save,State Machine,"yes",CONFIRM_SAVE,MENU,Pass,Pass,Expense saved, state reset to MENU
+SM-007,View with valid phone,State Machine,Valid contact number,VIEW_ASK_MOBILE,MENU,Pass,Pass,Expenses displayed, state reset
+SM-008,Modify with valid phone,State Machine,Valid contact number,MODIFY_ASK_MOBILE,MODIFY_ACTION,Pass,Pass,Expenses loaded, state transitioned
+SM-009,Modify action - delete,State Machine,"delete ABC123",MODIFY_ACTION,MODIFY_CONFIRM,Pass,Pass,Delete confirmation requested
+SM-010,Modify confirm,State Machine,"yes",MODIFY_CONFIRM,MENU,Pass,Pass,Delete executed, state reset
+VAL-001,Invalid amount input,Validation,"abc" when amount expected,CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Amount must be valid number
+VAL-002,Invalid date format,Validation,"random-text" when date expected,CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Date must be DD-MM-YYYY
+VAL-003,Invalid email format,Validation,"not-an-email",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Invalid email format
+VAL-004,Invalid contact number length,Validation,"12345",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Contact must have country code + 10 digits
+VAL-005,Single name instead of full name,Validation,"John",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Both first and last names required
+VAL-006,Invalid category,Validation,"Entertainment",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Must be Transport, Shopping, or Food
+VAL-007,Invalid card type,Validation,"Cash",CREATE_GATHER,CREATE_GATHER,same,Pass,Pass,Error shown: Must be Debit Card or Credit Card
+FAQ-001,Ask about purpose,FAQ,"what is your purpose",MENU,MENU,Pass,Pass,Returns AI Assistant description
+FAQ-002,Ask about categories,FAQ,"what categories do you support",MENU,MENU,Pass,Pass,Returns: Transport, Shopping, Food
+FAQ-003,Ask about security,FAQ,"is my data secure",MENU,MENU,Pass,Pass,Returns security assurance message
+FAQ-004,Ask about export,FAQ,"how to export data",MENU,MENU,Pass,Pass,Returns CSV export instructions
+FAQ-005,Ask about tracking,FAQ,"how to track expense",MENU,MENU,Pass,Pass,Returns tracking instructions
+FAQ-006,Ask about delete,FAQ,"how to delete expense",MENU,MENU,Pass,Pass,Returns modify/delete instructions

@@ -1,0 +1,99 @@
+.app-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* AI Assistant Side */
+.assistant-side {
+  background-color: var(--surface-dim);
+  padding: 4rem 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.assistant-header {
+  margin-bottom: 3rem;
+}
+
+.chat-input-area {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.chat-input-area button {
+  background: var(--primary);
+  color: var(--on-primary);
+  border: none;
+  width: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chat-input-area button:hover {
+  background: var(--primary-container);
+}
+
+/* Analytics Side */
+.analytics-side {
+  background-color: var(--surface-container-low);
+  padding: 4rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  border-left: 1px solid var(--ghost-border); /* subtle separation if needed, or rely on bg color */
+}
+
+.metrics-grid {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-container {
+  height: 250px;
+  margin-top: 1rem;
+}
+
+.transaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--ghost-border); /* Ghost border */
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hover-card {
+  transition: all 0.2s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  opacity: 0.95;
+}

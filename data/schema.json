@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Expense",
+  "description": "A single expense transaction logged via the AI Assistant or Dashboard",
+  "type": "object",
+  "properties": {
+    "shortId": {
+      "type": "string",
+      "description": "A 6-character alphanumeric distinct ID primarily used for natural language chat identification"
+    },
+    "fullName": {
+      "type": "string",
+      "description": "User's complete full name (must contain at least two words)"
+    },
+    "cardType": {
+      "type": "string",
+      "enum": ["Debit Card", "Credit Card"]
+    },
+    "category": {
+      "type": "string",
+      "enum": ["Transport", "Shopping", "Food"]
+    },
+    "amount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "description": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[012])-\\d{4}$",
+      "description": "Strict DD-MM-YYYY format"
+    },
+    "contactNumber": {
+      "type": "string",
+      "pattern": "^(\\+\\d{1,4}\\s?\\d{10})$",
+      "description": "Country code + exactly 10 digits"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    }
+  },
+  "required": ["fullName", "cardType", "category", "amount", "description", "date", "contactNumber", "email"]
+}
