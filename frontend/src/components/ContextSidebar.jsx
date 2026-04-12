@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import API_BASE from '../config';
 import { PlusCircle, List, Edit3 } from 'lucide-react';
 
 export default function ContextSidebar({ refreshTrigger, onTaskSelect }) {
@@ -8,7 +9,7 @@ export default function ContextSidebar({ refreshTrigger, onTaskSelect }) {
   useEffect(() => {
     const fetchRecent = async () => {
       try {
-        const res = await axios.get('http://localhost:5001/api/analytics');
+        const res = await axios.get(`${API_BASE}/api/analytics`);
         setRecentTransactions(res.data.recentTransactions || []);
       } catch (err) {
         console.error("Failed to fetch recent transactions", err);

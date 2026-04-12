@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import API_BASE from './config';
 import ChatWidget from './components/ChatWidget';
 import ContextSidebar from './components/ContextSidebar';
 import HistoryView from './components/HistoryView';
@@ -15,7 +16,7 @@ function App() {
 
   const fetchTotal = async () => {
     try {
-      const url = mobileNumber ? `http://localhost:5001/api/analytics?contactNumber=${encodeURIComponent(mobileNumber)}` : 'http://localhost:5001/api/analytics';
+      const url = mobileNumber ? `${API_BASE}/api/analytics?contactNumber=${encodeURIComponent(mobileNumber)}` : `${API_BASE}/api/analytics`;
       const res = await axios.get(url);
       setTotalCapital(res.data.totalThisMonth || 0); // Using total this month as proxy for total for now
     } catch (err) {

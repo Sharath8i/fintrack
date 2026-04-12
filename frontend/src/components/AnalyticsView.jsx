@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import API_BASE from '../config';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler } from 'chart.js';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
 
@@ -16,7 +17,7 @@ export default function AnalyticsView({ refreshTrigger, viewMobile }) {
 
   const fetchAnalytics = async () => {
     try {
-      const url = viewMobile ? `http://localhost:5001/api/analytics?contactNumber=${encodeURIComponent(viewMobile)}` : 'http://localhost:5001/api/analytics';
+      const url = viewMobile ? `${API_BASE}/api/analytics?contactNumber=${encodeURIComponent(viewMobile)}` : `${API_BASE}/api/analytics`;
       const res = await axios.get(url);
       setData(res.data);
     } catch (err) {

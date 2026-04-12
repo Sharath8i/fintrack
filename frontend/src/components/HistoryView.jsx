@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import API_BASE from '../config';
 
 export default function HistoryView({ refreshTrigger, viewMobile }) {
   const [recentTransactions, setRecentTransactions] = useState([]);
@@ -8,7 +9,7 @@ export default function HistoryView({ refreshTrigger, viewMobile }) {
 
   const fetchHistory = async () => {
     try {
-      const url = viewMobile ? `http://localhost:5001/api/expenses?contactNumber=${encodeURIComponent(viewMobile)}` : 'http://localhost:5001/api/expenses';
+      const url = viewMobile ? `${API_BASE}/api/expenses?contactNumber=${encodeURIComponent(viewMobile)}` : `${API_BASE}/api/expenses`;
       const res = await axios.get(url);
       setRecentTransactions(res.data || []);
     } catch (err) {

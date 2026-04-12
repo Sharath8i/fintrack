@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import API_BASE from '../config';
 import { ArrowRight, User, Mic } from 'lucide-react';
 
 // Subcomponent to render Transaction Draft if detected in bot message
@@ -157,7 +158,7 @@ export default function ChatWidget({ onAction, externalCommand, clearExternalCom
     setInput('');
 
     try {
-      const res = await axios.post('http://localhost:5001/api/chat', {
+      const res = await axios.post(`${API_BASE}/api/chat`, {
         sessionId,
         message: userText
       });
