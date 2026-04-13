@@ -14,11 +14,11 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
   if (!data) return null;
   const merchant = data.description || "Unspecified";
   const category = data.category || "General";
-  const cardType = data.cardType || "Standard";
+  const cardType = data.card_type || "Standard";
   const amount = data.amount || 0;
-  const fullName = data.fullName || "Guest User";
+  const fullName = data.full_name || "Guest User";
   const date = data.date || "Today";
-  const contact = data.contactNumber || "N/A";
+  const contact = data.contact_number || "N/A";
   const email = data.email || "N/A";
   const draftId = data.shortId || "NEW-TX";
 
@@ -183,15 +183,18 @@ export default function ChatWidget({ onAction }) {
         }
       });
 
+      const { bot_reply, extracted_data, intent, is_ready_for_api } = res.data;
+
       setMessages(prev => [...prev, { 
-        text: res.data.reply, 
+        text: bot_reply, 
         isBot: true, 
-        isMenu: res.data.state === 'MENU',
-        draftData: res.data.draftData
+        isMenu: intent === 'GeneralQuery' && !extracted_data?.amount,
+        draftData: extracted_data
       }]);
 
-      if (res.data.requiresAction) {
-        onAction(res.data.requiresAction);
+      if (is_ready_for_api) {
+        onAction('REFRESH_ANALYTICS');
+        onAction('LOAD_HISTORY');
       }
     } catch (err) {
       setMessages(prev => [...prev, { text: "Protocol error: Connection lost.", isBot: true }]);
