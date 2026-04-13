@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  
   "title": "Expense",
   "description": "A single expense transaction logged via the AI Assistant or Dashboard",
   "type": "object",
@@ -42,5 +42,5 @@
       "format": "email"
     }
   },
-  "required": ["fullName", "cardType", "category", "amount", "description", "date", "contactNumber", "email"]
+  "required": ["fullName", "cardType", "category", "amount", "description", "date", "contactNumber", "email"  ]
 }
