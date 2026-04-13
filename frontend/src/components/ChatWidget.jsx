@@ -4,10 +4,21 @@ import { API_BASE } from '../config';
 import { useAuth } from '../AuthContext';
 import { Send, User as UserIcon, Mic, Plus, List, Edit2 } from 'lucide-react';
 
+// --- 5. Highlight important bot messages ---
+const parseText = (text) => {
+  if (!text) return null;
+  return text.split(/(\*\*[\s\S]*?\*\*)/g).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} style={{ color: '#ffcc00' }}>{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 const TASK_MENU = [
   { label: 'CREATE EXPENSE', icon: <Plus size={14} />, message: '1' },
-  { label: 'VIEW EXPENSES',  icon: <List size={14} />, message: '2' },
-  { label: 'MODIFY/DELETE',  icon: <Edit2 size={14} />, message: '3' },
+  { label: 'VIEW EXPENSES', icon: <List size={14} />, message: '2' },
+  { label: 'MODIFY/DELETE', icon: <Edit2 size={14} />, message: '3' },
 ];
 
 function TransactionDraftCard({ data, onConfirm, onEdit }) {
@@ -76,7 +87,7 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
       </div>
 
       <div style={{ display: 'flex', gap: '10px' }}>
-        <button 
+        <button
           onClick={onConfirm}
           style={{
             flex: 2,
@@ -91,7 +102,7 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
             cursor: 'pointer'
           }}
         >SAVE TO LEDGER</button>
-        <button 
+        <button
           onClick={onEdit}
           style={{
             flex: 1,
@@ -147,12 +158,26 @@ function TaskControlPanel({ onSelect }) {
 export default function ChatWidget({ onAction }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([
-    { isBot: true, isMenu: true, text: `Welcome back, ${user?.name?.split(' ')[0] || 'Operator'}. Select an operation below:` }
+    { isBot: true, isMenu: true, text: `Welcome back, ${user?.name?.split(' ')[0] || 'Operator'}. Select an operation below or try: **"Spent 500 on food"**` }
   ]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [emptyWarning, setEmptyWarning] = useState(false);
   const [sessionId] = useState(() => Math.random().toString(36).substring(7));
-  
+
+  const placeholders = [
+    "e.g. 'Spent ₹500 on Uber today'...",
+    "e.g. 'Show total spending'...",
+    "e.g. 'Bought groceries for 1200'..."
+  ];
+  const [phIdx, setPhIdx] = useState(0);
+
+  useEffect(() => {
+    const int = setInterval(() => setPhIdx(prev => (prev + 1) % placeholders.length), 4000);
+    return () => clearInterval(int);
+  }, []);
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -164,32 +189,42 @@ export default function ChatWidget({ onAction }) {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const pendingFAQ = sessionStorage.getItem('pendingFAQPrompt');
+    if (pendingFAQ) {
+      sessionStorage.removeItem('pendingFAQPrompt');
+      setTimeout(() => handleSend(pendingFAQ), 500);
+    }
+  }, []);
+
   const handleSend = async (overrideText) => {
     const text = typeof overrideText === 'string' ? overrideText : input.trim();
-    if (!text) return;
+    if (!text) {
+      setEmptyWarning(true);
+      setTimeout(() => setEmptyWarning(false), 2000);
+      return;
+    }
 
     const userMessage = { text, isBot: false };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
 
     try {
+      setIsTyping(true);
       const res = await axios.post(`${API_BASE}/api/chat`, {
         sessionId,
         message: text,
-        userContext: {
-          name: user?.name,
-          email: user?.email,
-          phone: user?.phone
-        }
+        userContext: { name: user?.name, email: user?.email, phone: user?.phone }
       });
 
-      const { bot_reply, extracted_data, intent, is_ready_for_api } = res.data;
+      const { bot_reply, extracted_data, intent, is_ready_for_api, missing_fields } = res.data;
+      setIsTyping(false);
 
-      setMessages(prev => [...prev, { 
-        text: bot_reply, 
-        isBot: true, 
+      setMessages(prev => [...prev, {
+        text: bot_reply,
+        isBot: true,
         isMenu: intent === 'GeneralQuery' && !extracted_data?.amount,
-        draftData: extracted_data
+        draftData: (intent === 'CreateExpense' && (missing_fields === undefined || missing_fields.length === 0)) ? extracted_data : null
       }]);
 
       if (is_ready_for_api) {
@@ -197,7 +232,9 @@ export default function ChatWidget({ onAction }) {
         onAction('LOAD_HISTORY');
       }
     } catch (err) {
-      setMessages(prev => [...prev, { text: "Protocol error: Connection lost.", isBot: true }]);
+      setIsTyping(false);
+      // --- 4. Improve error messages ---
+      setMessages(prev => [...prev, { text: "⚠️ Oops! Our AI servers are busy. Please try again.", isBot: true }]);
     }
   };
 
@@ -221,11 +258,11 @@ export default function ChatWidget({ onAction }) {
             </div>
             <div className="node-content">
               <div className="bubble">
-                {m.text}
+                {parseText(m.text)}
                 {m.isMenu && m.isBot && <TaskControlPanel onSelect={(msg) => handleSend(msg)} />}
                 {m.draftData && m.isBot && (
-                  <TransactionDraftCard 
-                    data={m.draftData} 
+                  <TransactionDraftCard
+                    data={m.draftData}
                     onConfirm={() => handleSend("yes")}
                     onEdit={() => setInput("change description to ")}
                   />
@@ -237,23 +274,51 @@ export default function ChatWidget({ onAction }) {
             </div>
           </div>
         ))}
+        {isTyping && (
+          <div className="message-node bot">
+            <div className="node-avatar">⬢</div>
+            <div className="node-content">
+              <div className="bubble" style={{ display: 'flex', gap: '4px', padding: '10px 14px' }}>
+                <style>{`
+                  @keyframes bounceDelay { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-4px); } }
+                  .tdot { width: 6px; height: 6px; background-color: var(--accent); border-radius: 50%; display: inline-block; animation: bounceDelay 1.4s infinite ease-in-out both; }
+                  .tdot1 { animation-delay: -0.32s; }
+                  .tdot2 { animation-delay: -0.16s; }
+                `}</style>
+                <div className="tdot tdot1"></div>
+                <div className="tdot tdot2"></div>
+                <div className="tdot"></div>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="input-area">
+
+
+
+      <div className="input-area" style={{ position: 'relative' }}>
+        {emptyWarning && (
+          <div style={{ position: 'absolute', top: '-38px', left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#000', fontSize: '10px', padding: '6px 14px', borderRadius: '4px', fontWeight: 900, letterSpacing: '1px', boxShadow: '0 4px 12px rgba(255, 204, 0, 0.2)', transition: 'opacity 0.2s' }}>
+            INPUT CANNOT BE EMPTY
+          </div>
+        )}
         <form className="input-wrapper" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
-          <input 
+          <input
             ref={inputRef}
-            type="text" 
-            placeholder="Instruct the Finance AI..." 
-            value={input} 
+            type="text"
+            placeholder={placeholders[phIdx]}
+            value={input}
             onChange={e => setInput(e.target.value)}
+            disabled={isTyping}
+            style={{ opacity: isTyping ? 0.5 : 1, transition: 'all 0.3s ease' }}
           />
           <div className="input-actions">
-            <button type="button" className={`icon-btn ${isListening ? 'active' : ''}`} onClick={startListening}>
+            <button type="button" className={`icon-btn ${isListening ? 'active' : ''}`} onClick={startListening} disabled={isTyping}>
               <Mic size={18} />
             </button>
-            <button type="submit" className="icon-btn" style={{ color: 'var(--accent)' }}>
+            <button type="submit" className="icon-btn" style={{ color: isTyping ? '#555' : 'var(--accent)' }} disabled={isTyping}>
               <Send size={18} />
             </button>
           </div>

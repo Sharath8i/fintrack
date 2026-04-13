@@ -26,7 +26,7 @@ const Layout = ({ children }) => {
     if (user?.phone) setPhone(user.phone);
     if (user?.name) setNewName(user.name);
     if (user?.email) setNewEmail(user.email);
-    
+
     const isNew = localStorage.getItem('is_new_signup');
     if (isNew === 'true') {
       setIsNewSignup(true);
@@ -87,8 +87,8 @@ const Layout = ({ children }) => {
 
     try {
       setFieldErrors({});
-      await updateProfile({ 
-        name: newName.trim(), 
+      await updateProfile({
+        name: newName.trim(),
         phone: sanitizedPhone,
         email: newEmail.trim()
       });
@@ -102,13 +102,19 @@ const Layout = ({ children }) => {
 
   const [activeTab, setActiveTab] = React.useState('chat');
 
+  React.useEffect(() => {
+    const handleSwitch = (e) => setActiveTab(e.detail);
+    window.addEventListener('switchTab', handleSwitch);
+    return () => window.removeEventListener('switchTab', handleSwitch);
+  }, []);
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
       <aside className="sidebar">
         <div className="brand-section">
           <div className="brand-logo">
-            💰 FIN<span>TRACK.AI</span>
+            💰 FINTRACK.AI
           </div>
         </div>
 
@@ -142,23 +148,23 @@ const Layout = ({ children }) => {
                 {user?.name ? user.name[0].toUpperCase() : 'U'}
               </div>
             </div>
-            <button onClick={logout} style={{ 
-              background: 'transparent', 
-              border: '1px solid var(--glass-border)', 
-              color: 'var(--error)', 
-              padding: '0.5rem 1.25rem', 
-              fontSize: '0.75rem', 
-              fontWeight: '800', 
+            <button onClick={logout} style={{
+              background: 'transparent',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--error)',
+              padding: '0.5rem 1.25rem',
+              fontSize: '0.75rem',
+              fontWeight: '800',
               borderRadius: '4px',
               cursor: 'pointer'
             }}>
-               Logout
+              Logout
             </button>
           </div>
 
           {showProfile && (
             <div className={isNewSignup ? "profile-modal-overlay" : ""}>
-              <div className={isNewSignup ? "profile-modal-content" : "profile-dropdown"} style={{ 
+              <div className={isNewSignup ? "profile-modal-content" : "profile-dropdown"} style={{
                 position: isNewSignup ? 'relative' : 'absolute',
                 top: isNewSignup ? '0' : '80px',
                 right: isNewSignup ? '0' : '3rem',
@@ -173,7 +179,7 @@ const Layout = ({ children }) => {
                 <div className="dropdown-header" style={{ fontSize: '0.9rem', color: '#fff', fontWeight: '800', marginBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
                   {isNewSignup ? "Profile Setup" : "Profile Details"}
                 </div>
-                
+
                 {isNewSignup && (
                   <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginBottom: '2rem' }}>
                     Please complete your profile details below.
@@ -247,7 +253,7 @@ const Layout = ({ children }) => {
             SYSTEM ONLINE_NODE v2.0.4
           </div>
           <div>© 2026 PRECISION LEDGER SYSTEM • ALL QUANTUM ENCRYPTED</div>
-          <div>SESSION: {user?.id?.slice(0,8).toUpperCase() || 'VOID'}</div>
+          <div>SESSION: {user?.id?.slice(0, 8).toUpperCase() || 'VOID'}</div>
         </footer>
       </main>
     </div>
