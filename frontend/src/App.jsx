@@ -63,16 +63,16 @@ const Layout = ({ children }) => {
 
   const handleUpdate = async () => {
     const errors = {};
+    const sanitizedPhone = phone.replace(/\s+/g, '');
 
     // 1. Name Validation
-    const nameParts = newName.trim().split(/\s+/);
-    if (nameParts.length < 2) {
-      errors.name = "First and Last name required";
+    if (newName.trim().split(' ').length < 2) {
+      errors.name = "Full name required (First and Last)";
     }
 
-    // 2. Phone Validation
-    if (!/^\+\d{1,4}\s?\d{10}$/.test(phone.trim())) {
-      errors.phone = "Use format: +[Code][10 digits]";
+    // 2. Phone Validation (+[Code][10 digits])
+    if (!/^\+\d{1,4}\d{10}$/.test(sanitizedPhone)) {
+      errors.phone = "Format: +[Code][Exactly 10 digits] (e.g. +919876543210)";
     }
 
     // 3. Email Validation
@@ -89,7 +89,7 @@ const Layout = ({ children }) => {
       setFieldErrors({});
       await updateProfile({ 
         name: newName.trim(), 
-        phone: phone.trim(),
+        phone: sanitizedPhone,
         email: newEmail.trim()
       });
       setIsEditing(false);
@@ -100,399 +100,156 @@ const Layout = ({ children }) => {
     }
   };
 
+  const [activeTab, setActiveTab] = React.useState('chat');
+
   return (
-    <div className="layout-root">
-      <nav className="top-nav">
-        <div className="top-nav-content">
-          <div className="nav-left">
-            <div className="nav-brand">
-              <span className="brand-icon">💰</span>
-              <h1 className="brand-name">FinTrack.AI</h1>
-            </div>
-          </div>
-
-          <div className="nav-right">
-            <div className="profile-wrapper" ref={profileRef}>
-              <div className="user-profile" onClick={() => setShowProfile(!showProfile)}>
-                <div className="avatar">
-                  {user?.name ? user.name[0].toUpperCase() : 'U'}
-                </div>
-                <span className="user-name">{user?.name?.split(' ')[0] || 'Operator'}</span>
-              </div>
-
-              {showProfile && (
-                <div className={isNewSignup ? "profile-modal-overlay" : ""}>
-                 <div className={isNewSignup ? "profile-modal-content" : "profile-dropdown"}>
-                  {!isNewSignup && <div className="dropdown-arrow"></div>}
-                  <div className="dropdown-header">
-                    {isNewSignup ? "INITIALIZE ACCOUNT_DETAILS" : "ACCOUNT_DETAILS"}
-                  </div>
-                  
-                  {isNewSignup && (
-                    <p style={{ color: '#666', fontSize: '0.8rem', marginBottom: '25px', marginTop: '-10px', letterSpacing: '0.5px' }}>
-                      Welcome to Precision Ledger AI. Please finalize your identity to activate advanced financial tracking features.
-                    </p>
-                  )}
-
-                  <div className="detail-item">
-                    <span className="detail-label">FULL NAME</span>
-                    {isEditing ? (
-                      <>
-                        <input
-                          className={`detail-input ${fieldErrors.name ? 'input-error' : ''}`}
-                          value={newName}
-                          onChange={(e) => { setNewName(e.target.value); delete fieldErrors.name; }}
-                          placeholder="e.g. John Doe"
-                        />
-                        {fieldErrors.name && <span className="error-text">{fieldErrors.name}</span>}
-                      </>
-                    ) : (
-                      <span className="detail-value">{user?.name}</span>
-                    )}
-                  </div>
-
-                  <div className="detail-item">
-                    <span className="detail-label">EMAIL ADDRESS</span>
-                    {isEditing ? (
-                      <>
-                        <input
-                          className={`detail-input ${fieldErrors.email ? 'input-error' : ''}`}
-                          value={newEmail}
-                          onChange={(e) => { setNewEmail(e.target.value); delete fieldErrors.email; }}
-                          placeholder="name@example.com"
-                        />
-                        {fieldErrors.email && <span className="error-text">{fieldErrors.email}</span>}
-                      </>
-                    ) : (
-                      <span className="detail-value">{user?.email}</span>
-                    )}
-                  </div>
-
-                  <div className="detail-item">
-                    <span className="detail-label">MOBILE_NUMBER</span>
-                    {isEditing ? (
-                      <>
-                        <input
-                          className={`detail-input ${fieldErrors.phone ? 'input-error' : ''}`}
-                          value={phone}
-                          onChange={(e) => { setPhone(e.target.value); delete fieldErrors.phone; }}
-                          placeholder="+919876543210"
-                          autoFocus
-                        />
-                        {fieldErrors.phone && <span className="error-text">{fieldErrors.phone}</span>}
-                      </>
-                    ) : (
-                      <span className="detail-value">{user?.phone || 'NOT_SET'}</span>
-                    )}
-                  </div>
-                  {fieldErrors.form && <div className="error-text" style={{ textAlign: 'center', marginBottom: 15 }}>{fieldErrors.form}</div>}
-
-                  <div className="dropdown-footer">
-                    {isEditing ? (
-                      <div className="edit-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <button onClick={handleUpdate} className="save-btn" style={{ width: '100%' }}>SAVE_IDENTITY</button>
-                        {!isNewSignup && (
-                          <button onClick={() => setIsEditing(false)} className="cancel-btn" style={{ background: '#111', color: '#fff', border: 'none', padding: '10px', fontSize: '10px', fontWeight: '800', cursor: 'pointer' }}>CANCEL</button>
-                        )}
-                      </div>
-                    ) : (
-                      <button onClick={() => setIsEditing(true)} className="edit-btn">EDIT_PROFILE</button>
-                    )}
-                    {!isNewSignup && (
-                      <button onClick={logout} className="dropdown-logout">DISCONNECT_SESSION</button>
-                    )}
-                  </div>
-                 </div>
-                </div>
-              )}
-            </div>
-
-            <button className="signout-btn" onClick={logout}>Sign out</button>
+    <div className="app-container">
+      {/* Sidebar Navigation */}
+      <aside className="sidebar">
+        <div className="brand-section">
+          <div className="brand-logo">
+            💰 FIN<span>TRACK.AI</span>
           </div>
         </div>
-      </nav>
 
-      <main className="main-viewport">
-        {children}
+        <nav className="nav-menu">
+          <div className={`nav-link ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
+            <span className="icon">◈</span> AI_ASSISTANT
+          </div>
+          <div className={`nav-link ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+            <span className="icon">▤</span> LEDGER_HISTORY
+          </div>
+          <div className={`nav-link ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
+            <span className="icon">📊</span> DATA_INSIGHTS
+          </div>
+          <div className={`nav-link ${activeTab === 'faq' ? 'active' : ''}`} onClick={() => setActiveTab('faq')}>
+            <span className="icon">?</span> HELP_FAQ
+          </div>
+        </nav>
+
+        <div style={{ padding: '2rem', marginTop: 'auto', textAlign: 'center' }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PRECISION_NODE_V2.0</div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="main-view">
+        <header className="top-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            <div className="user-profile" onClick={() => setShowProfile(!showProfile)}>
+              <div className="user-name">{user?.name || 'SYNCING...'}</div>
+              <div className="avatar-circle">
+                {user?.name ? user.name[0].toUpperCase() : 'U'}
+              </div>
+            </div>
+            <button onClick={logout} style={{ 
+              background: 'transparent', 
+              border: '1px solid var(--glass-border)', 
+              color: 'var(--error)', 
+              padding: '0.5rem 1.25rem', 
+              fontSize: '0.75rem', 
+              fontWeight: '800', 
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}>
+               Logout
+            </button>
+          </div>
+
+          {showProfile && (
+            <div className={isNewSignup ? "profile-modal-overlay" : ""}>
+              <div className={isNewSignup ? "profile-modal-content" : "profile-dropdown"} style={{ 
+                position: isNewSignup ? 'relative' : 'absolute',
+                top: isNewSignup ? '0' : '80px',
+                right: isNewSignup ? '0' : '3rem',
+                zIndex: 1000,
+                background: 'var(--bg-elevated)',
+                padding: '2.5rem',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '8px',
+                width: isNewSignup ? '450px' : '320px',
+                boxShadow: 'var(--shadow-lg)'
+              }}>
+                <div className="dropdown-header" style={{ fontSize: '0.9rem', color: '#fff', fontWeight: '800', marginBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
+                  {isNewSignup ? "Profile Setup" : "Profile Details"}
+                </div>
+                
+                {isNewSignup && (
+                  <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                    Please complete your profile details below.
+                  </p>
+                )}
+
+                <div className="detail-item" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Full Name</label>
+                  {isEditing ? (
+                    <input
+                      style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.name ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
+                      value={newName}
+                      onChange={(e) => { setNewName(e.target.value); if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: null })); }}
+                    />
+                  ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.name}</div>}
+                  {fieldErrors.name && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.name}</div>}
+                </div>
+
+                <div className="detail-item" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Email Address</label>
+                  {isEditing ? (
+                    <input
+                      style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.email ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
+                      value={newEmail}
+                      onChange={(e) => { setNewEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: null })); }}
+                    />
+                  ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.email}</div>}
+                  {fieldErrors.email && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.email}</div>}
+                </div>
+
+                <div className="detail-item" style={{ marginBottom: '2rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Phone Number</label>
+                  {isEditing ? (
+                    <input
+                      style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.phone ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
+                      value={phone}
+                      onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: null })); }}
+                      placeholder="+919876543210"
+                    />
+                  ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.phone || 'Not provided'}</div>}
+                  {fieldErrors.phone && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.phone}</div>}
+                </div>
+
+                <div className="dropdown-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {isEditing ? (
+                    <button onClick={handleUpdate} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Save Changes</button>
+                  ) : (
+                    <button onClick={() => setIsEditing(true)} style={{ background: 'var(--bg-active)', color: '#fff', border: '1px solid var(--glass-border)', padding: '0.85rem', fontWeight: '700', cursor: 'pointer', borderRadius: '4px' }}>Edit Profile</button>
+                  )}
+                  {!isNewSignup && (
+                    <button onClick={logout} style={{ background: 'transparent', color: 'var(--error)', border: 'none', padding: '0.5rem', fontWeight: '800', cursor: 'pointer' }}>Logout</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </header>
+
+        <section className="main-viewport" style={{ padding: '0 3rem' }}>
+          {React.Children.map(children, child => {
+            if (React.isValidElement(child)) {
+              return React.cloneElement(child, { activeTab });
+            }
+            return child;
+          })}
+        </section>
+
+        <footer className="footer-status">
+          <div className="status-indicator">
+            <span className="dot"></span>
+            SYSTEM ONLINE_NODE v2.0.4
+          </div>
+          <div>© 2026 PRECISION LEDGER SYSTEM • ALL QUANTUM ENCRYPTED</div>
+          <div>SESSION: {user?.id?.slice(0,8).toUpperCase() || 'VOID'}</div>
+        </footer>
       </main>
-      <Footer />
-
-      <style jsx="true">{`
-        .layout-root {
-          height: 100vh;
-          display: flex;
-          flex-direction: column;
-          background: #000;
-          color: #fff;
-          font-family: 'Inter', sans-serif;
-          overflow: hidden;
-        }
-        .top-nav {
-          background: #000;
-          border-bottom: 1px solid #111;
-          z-index: 100;
-          height: 64px;
-          display: flex;
-          align-items: center;
-        }
-        .top-nav-content {
-          width: 100%;
-          padding: 0 40px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .nav-left .nav-brand {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .brand-icon {
-          font-size: 18px;
-        }
-        .brand-name {
-          font-size: 14px;
-          font-weight: 900;
-          letter-spacing: 1px;
-          color: #fff;
-          margin: 0;
-          text-transform: uppercase;
-        }
-        .nav-center .mode-toggle {
-          background: #0a0a0a;
-          border: 1px solid #1a1a1a;
-          padding: 4px;
-          border-radius: 4px;
-          display: flex;
-          gap: 2px;
-        }
-        .mode-btn {
-          padding: 6px 16px;
-          border-radius: 2px;
-          font-size: 10px;
-          font-weight: 800;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s;
-          background: transparent;
-          color: #444;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        .mode-btn.active {
-          background: #111;
-          color: #ffcc00;
-          box-shadow: 0 0 15px rgba(255, 204, 0, 0.1);
-        }
-        .nav-right {
-          display: flex;
-          align-items: center;
-          gap: 24px;
-        }
-        .profile-wrapper {
-          position: relative;
-        }
-        .user-profile {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          cursor: pointer;
-          padding: 6px 12px;
-          border-radius: 4px;
-          transition: background 0.2s;
-        }
-        .user-profile:hover {
-          background: #0a0a0a;
-        }
-        .avatar {
-          width: 28px;
-          height: 28px;
-          background: #111;
-          border: 1px solid #222;
-          color: #ffcc00;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          font-weight: 800;
-          font-size: 12px;
-        }
-        .user-name {
-          font-size: 11px;
-          color: #888;
-          font-weight: 700;
-          letter-spacing: 1.5px;
-          text-transform: uppercase;
-        }
-        .profile-dropdown {
-          position: absolute;
-          top: 50px;
-          right: 0;
-          background: #0a0a0a;
-          border: 1px solid #1a1a1a;
-          width: 300px;
-          padding: 25px;
-          border-radius: 4px;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-          z-index: 1000;
-        }
-        .profile-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.9);
-          backdrop-filter: blur(10px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          animation: fadeIn 0.4s ease-out;
-        }
-        .profile-modal-content {
-          background: #050505;
-          border: 1px solid #1a1a1a;
-          padding: 40px;
-          width: 100%;
-          max-width: 450px;
-          border-radius: 4px;
-          box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-          animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        .dropdown-arrow {
-          position: absolute;
-          top: -6px;
-          right: 20px;
-          width: 10px;
-          height: 10px;
-          background: #050505;
-          border-left: 1px solid #1a1a1a;
-          border-top: 1px solid #1a1a1a;
-          transform: rotate(45deg);
-        }
-        .dropdown-header {
-          font-size: 9px;
-          color: #444;
-          font-weight: 800;
-          letter-spacing: 2px;
-          margin-bottom: 20px;
-          border-bottom: 1px solid #111;
-          padding-bottom: 10px;
-        }
-        .detail-item {
-          margin-bottom: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .detail-label {
-          font-size: 8px;
-          color: #555;
-          font-weight: 800;
-          letter-spacing: 1px;
-        }
-        .detail-value {
-          font-size: 12px;
-          color: #eee;
-          font-weight: 500;
-        }
-        .detail-input {
-          background: #111;
-          border: 1px solid #333;
-          color: #fff;
-          padding: 8px 12px;
-          font-size: 11px;
-          border-radius: 2px;
-          outline: none;
-          font-family: inherit;
-        }
-        .detail-input:focus {
-          border-color: #ffcc00;
-        }
-        .detail-input.input-error {
-          border-color: #ff4444;
-        }
-        .error-text {
-          color: #ff4444;
-          font-size: 8px;
-          margin-top: 4px;
-          font-weight: 800;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-        }
-        .status-active {
-          color: #00ff88;
-          font-size: 10px;
-          font-weight: 800;
-        }
-        .dropdown-footer {
-          margin-top: 24px;
-          padding-top: 16px;
-          border-top: 1px solid #111;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .edit-btn, .save-btn {
-          width: 100%;
-          background: #111;
-          border: 1px solid #333;
-          color: #fff;
-          padding: 10px;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
-          cursor: pointer;
-          border-radius: 2px;
-          transition: all 0.2s;
-          text-transform: uppercase;
-        }
-        .save-btn {
-          background: #ffcc00;
-          color: #000;
-          border-color: #ffcc00;
-        }
-        .edit-btn:hover {
-          background: #1a1a1a;
-          border-color: #444;
-        }
-        .dropdown-logout {
-          width: 100%;
-          background: transparent;
-          border: 1px solid #222;
-          color: #555;
-          padding: 10px;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
-          cursor: pointer;
-          border-radius: 2px;
-          transition: all 0.2s;
-        }
-        .dropdown-logout:hover {
-          border-color: #ef4444;
-          color: #ef4444;
-          background: rgba(239, 68, 68, 0.05);
-        }
-        .signout-btn {
-          display: none; /* Hidden because it's now in the dropdown */
-        }
-        .main-viewport {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   );
 };

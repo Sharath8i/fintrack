@@ -24,7 +24,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/expense_tra
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/analytics', require('./routes/analytics'));
-app.use('/api/chat', require('./routes/chat'));
+app.use('/api/chat', require('./routes/chat').router);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

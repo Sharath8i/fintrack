@@ -50,18 +50,44 @@ const AuthPage = ({ mode = 'login' }) => {
   });
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="brand-title">FINTRACK.AI</h1>
-          <p className="auth-subtitle">{mode === 'login' ? 'Welcome back to your ledger' : 'Initialize your personal ledger'}</p>
+    <div className="auth-view" style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      background: 'var(--bg-base)',
+      padding: '2rem'
+    }}>
+      <div className="auth-panel" style={{ 
+        width: '100%', 
+        maxWidth: '420px', 
+        background: 'var(--bg-surface)', 
+        border: '1px solid var(--glass-border)', 
+        padding: '3.5rem', 
+        borderRadius: '8px', 
+        boxShadow: 'var(--shadow-lg)' 
+      }}>
+        <div className="auth-header" style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h1 style={{ 
+            fontFamily: "'Outfit', sans-serif", 
+            fontWeight: 800, 
+            fontSize: '1.2rem', 
+            letterSpacing: '0.2em', 
+            color: '#fff',
+            marginBottom: '0.5rem'
+          }}>
+            FIN<span>TRACK.AI</span>
+          </h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {mode === 'login' ? 'SECURE_ACCESS_REQUIRED' : 'INITIALIZE_LEDGER_NODE'}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-
-          <div className="input-group">
-            <label>Email Address</label>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="form-field">
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Email Address</label>
             <input 
+              style={{ width: '100%', background: 'var(--bg-active)', border: '1px solid var(--glass-border)', color: '#fff', padding: '1rem', borderRadius: '4px', outline: 'none' }}
               type="email" 
               placeholder="name@example.com" 
               value={email} 
@@ -69,9 +95,11 @@ const AuthPage = ({ mode = 'login' }) => {
               required 
             />
           </div>
-          <div className="input-group">
-            <label>Password</label>
+
+          <div className="form-field">
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Password</label>
             <input 
+              style={{ width: '100%', background: 'var(--bg-active)', border: '1px solid var(--glass-border)', color: '#fff', padding: '1rem', borderRadius: '4px', outline: 'none' }}
               type="password" 
               placeholder="••••••••" 
               value={password} 
@@ -80,154 +108,53 @@ const AuthPage = ({ mode = 'login' }) => {
             />
           </div>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error && <div style={{ color: 'var(--error)', fontSize: '0.75rem', textAlign: 'center', padding: '1rem', background: 'rgba(255,68,68,0.05)', borderRadius: '4px' }}>{error}</div>}
 
-          <button type="submit" className="auth-button" disabled={loading}>
-            {loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
+          <button type="submit" style={{ 
+            background: 'var(--accent)', 
+            color: '#000', 
+            border: 'none', 
+            padding: '1.1rem', 
+            fontWeight: '900', 
+            fontSize: '0.8rem', 
+            cursor: 'pointer', 
+            borderRadius: '4px', 
+            marginTop: '1rem',
+            textTransform: 'uppercase'
+          }} disabled={loading}>
+            {loading ? 'Processing...' : (mode === 'login' ? 'Login' : 'Register')}
           </button>
 
-          <div className="divider">OR</div>
+          <div style={{ textAlign: 'center', margin: '1rem 0', color: 'var(--text-muted)', fontSize: '0.65rem', fontWeight: '800' }}>OR CONTINUE WITH</div>
 
-          <button type="button" className="google-button" onClick={() => handleGoogleSuccess()} disabled={loading}>
-            <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="Google" />
-            Continue with Google
+          <button type="button" onClick={() => handleGoogleSuccess()} style={{ 
+            background: '#fff', 
+            color: '#000', 
+            border: 'none', 
+            padding: '1rem', 
+            borderRadius: '4px', 
+            fontWeight: '800', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '1rem', 
+            cursor: 'pointer', 
+            fontSize: '0.8rem',
+            width: '100%'
+          }} disabled={loading}>
+            <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="G" style={{ width: '18px' }} />
+            Sign in with Google
           </button>
         </form>
 
-        <div className="auth-footer">
+        <div style={{ marginTop: '2.5rem', textAlign: 'center', fontSize: '0.75rem' }}>
           {mode === 'login' ? (
-            <p>New here? <Link to="/register">Create an account</Link></p>
+            <p style={{ color: 'var(--text-dim)' }}>New operator? <Link to="/register" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: '700' }}>REGISTER_HERE</Link></p>
           ) : (
-            <p>Already have an account? <Link to="/login">Sign in</Link></p>
+            <p style={{ color: 'var(--text-dim)' }}>Active node? <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: '700' }}>SIGN_IN</Link></p>
           )}
         </div>
       </div>
-
-      <style jsx="true">{`
-        .auth-container {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #000;
-          padding: 20px;
-        }
-        .auth-card {
-          width: 100%;
-          max-width: 400px;
-          background: #0a0a0a;
-          border: 1px solid #1a1a1a;
-          padding: 40px;
-          border-radius: 4px;
-        }
-        .brand-title {
-          font-family: 'Inter', sans-serif;
-          font-weight: 900;
-          font-size: 2rem;
-          color: #fff;
-          margin-bottom: 8px;
-          letter-spacing: -1px;
-        }
-        .auth-subtitle {
-          color: #666;
-          font-size: 0.9rem;
-          margin-bottom: 32px;
-        }
-        .auth-form {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        .input-group label {
-          display: block;
-          color: #999;
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 8px;
-        }
-        .input-group input {
-          width: 100%;
-          background: #111;
-          border: 1px solid #222;
-          padding: 12px;
-          color: #fff;
-          border-radius: 4px;
-          font-size: 1rem;
-        }
-        .input-group input:focus {
-          outline: none;
-          border-color: #ffcc00;
-        }
-        .auth-button {
-          margin-top: 12px;
-          background: #ffcc00;
-          color: #000;
-          border: none;
-          padding: 14px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          cursor: pointer;
-          border-radius: 4px;
-          transition: transform 0.2s;
-        }
-        .auth-button:hover {
-          transform: translateY(-2px);
-          background: #e6b800;
-        }
-        .divider {
-          text-align: center;
-          margin: 15px 0;
-          color: #444;
-          font-size: 10px;
-          letter-spacing: 2px;
-          position: relative;
-        }
-        .google-button {
-          background: #fff;
-          color: #000;
-          border: none;
-          padding: 12px;
-          border-radius: 4px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          cursor: pointer;
-          font-size: 0.9rem;
-          transition: transform 0.2s;
-        }
-        .google-button:hover {
-          transform: translateY(-2px);
-          background: #f0f0f0;
-        }
-        .google-button img {
-          width: 18px;
-        }
-        .auth-button:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-        .auth-error {
-          color: #ff4444;
-          font-size: 0.85rem;
-          background: rgba(255, 68, 68, 0.1);
-          padding: 10px;
-          border-radius: 4px;
-        }
-        .auth-footer {
-          margin-top: 24px;
-          text-align: center;
-          font-size: 0.9rem;
-          color: #666;
-        }
-        .auth-footer a {
-          color: #ffcc00;
-          text-decoration: none;
-        }
-      `}</style>
     </div>
   );
 };

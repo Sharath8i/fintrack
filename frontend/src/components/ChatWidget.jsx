@@ -202,34 +202,36 @@ export default function ChatWidget({ onAction }) {
   };
 
   return (
-    <div className="chat-interface">
+    <div className="chat-container">
       <div className="chat-messages">
         {messages.map((m, idx) => (
-          <div key={idx} className={`message-wrapper ${m.isBot ? 'bot' : 'user'}`}>
-            <div className="avatar">
-              {m.isBot ? '⬢' : <UserIcon size={12} />}
+          <div key={idx} className={`message-node ${m.isBot ? 'bot' : 'user'}`}>
+            <div className="node-avatar">
+              {m.isBot ? '⬢' : <UserIcon size={16} />}
             </div>
-            <div className="message-content">
-              <div className="message-bubble">{m.text}</div>
-              {m.isMenu && m.isBot && (
-                <TaskControlPanel onSelect={(msg) => handleSend(msg)} />
-              )}
-              {m.draftData && m.isBot && (
-                <TransactionDraftCard 
-                  data={m.draftData} 
-                  onConfirm={() => handleSend("yes")}
-                  onEdit={() => setInput("change description to ")}
-                />
-              )}
-              <div className="timestamp">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="node-content">
+              <div className="bubble">
+                {m.text}
+                {m.isMenu && m.isBot && <TaskControlPanel onSelect={(msg) => handleSend(msg)} />}
+                {m.draftData && m.isBot && (
+                  <TransactionDraftCard 
+                    data={m.draftData} 
+                    onConfirm={() => handleSend("yes")}
+                    onEdit={() => setInput("change description to ")}
+                  />
+                )}
+              </div>
+              <div className="timestamp">
+                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {m.isBot ? 'AI_AGENT' : 'USER_AUTH'}
+              </div>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="chat-input-section">
-        <form className="input-form" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+      <div className="input-area">
+        <form className="input-wrapper" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
           <input 
             ref={inputRef}
             type="text" 
@@ -238,133 +240,15 @@ export default function ChatWidget({ onAction }) {
             onChange={e => setInput(e.target.value)}
           />
           <div className="input-actions">
-            <button type="button" className={`voice-btn ${isListening ? 'active' : ''}`} onClick={startListening}>
+            <button type="button" className={`icon-btn ${isListening ? 'active' : ''}`} onClick={startListening}>
               <Mic size={18} />
             </button>
-            <button type="submit" className="send-btn">
+            <button type="submit" className="icon-btn" style={{ color: 'var(--accent)' }}>
               <Send size={18} />
             </button>
           </div>
         </form>
       </div>
-
-      <style jsx="true">{`
-        .chat-interface {
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          background: #000;
-        }
-        .chat-messages {
-          flex: 1;
-          overflow-y: auto;
-          padding: 40px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-        .message-wrapper {
-          display: flex;
-          gap: 15px;
-          max-width: 80%;
-        }
-        .message-wrapper.user {
-          align-self: flex-end;
-          flex-direction: row-reverse;
-        }
-        .avatar {
-          width: 28px;
-          height: 28px;
-          background: #111;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 2px;
-          font-size: 14px;
-          color: #444;
-          font-weight: 800;
-        }
-        .bot .avatar {
-          background: #ffcc00;
-          color: #000;
-        }
-        .message-content {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .user .message-content {
-          align-items: flex-end;
-        }
-        .message-bubble {
-          background: #0a0a0a;
-          border: 1px solid #1a1a1a;
-          padding: 12px 18px;
-          border-radius: 0 4px 4px 4px;
-          font-size: 0.95rem;
-          line-height: 1.5;
-          white-space: pre-wrap;
-          color: #eee;
-        }
-        .user .message-bubble {
-          background: #111;
-          border-color: #222;
-          color: #fff;
-          border-radius: 4px 0 4px 4px;
-        }
-        .timestamp {
-          font-size: 8px;
-          color: #444;
-          letter-spacing: 1px;
-        }
-        .chat-input-section {
-          padding: 30px 40px;
-          background: #000;
-          border-top: 1px solid #111;
-        }
-        .input-form {
-          background: #0a0a0a;
-          border: 1px solid #222;
-          display: flex;
-          padding: 8px;
-          border-radius: 4px;
-        }
-        .input-form input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          color: #fff;
-          padding: 10px 15px;
-          font-size: 0.95rem;
-          outline: none;
-        }
-        .input-actions {
-          display: flex;
-          gap: 5px;
-        }
-        .voice-btn, .send-btn {
-          background: transparent;
-          border: none;
-          color: #444;
-          padding: 8px;
-          cursor: pointer;
-          border-radius: 4px;
-          transition: all 0.2s;
-        }
-        .voice-btn:hover, .send-btn:hover {
-          color: #fff;
-          background: #111;
-        }
-        .voice-btn.active {
-          color: #ff4444;
-          animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }

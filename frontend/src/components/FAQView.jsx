@@ -30,90 +30,67 @@ export default function FAQView() {
   ];
 
   return (
-    <div className="faq-view">
-      <div className="view-header">
-        <h2 className="view-title">SYSTEM_KNOWLEDGE_BASE</h2>
-        <p className="view-subtitle">Frequently asked questions and operational documentation.</p>
-      </div>
+    <div className="faq-container" style={{ padding: '2rem 0' }}>
+      <header style={{ marginBottom: '4rem' }}>
+        <h2 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2.5px', margin: 0, color: '#fff' }}>KNOWLEDGE_PORTAL</h2>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '800', letterSpacing: '0.15em', marginTop: '0.5rem' }}>OPERATIONAL_DOCUMENTATION_V2.5</div>
+      </header>
 
-      <div className="faq-list">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', gap: '2rem', paddingBottom: '4rem' }}>
         {faqs.map((faq, idx) => (
-          <div key={idx} className="faq-item">
-            <div className="faq-question">
-              <HelpCircle size={16} className="faq-icon" />
-              <span>{faq.q}</span>
+          <div key={idx} className="precision-panel" style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--glass-border)',
+            padding: '2.5rem',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '-10px',
+              right: '-10px',
+              fontSize: '4rem',
+              fontWeight: '900',
+              color: 'rgba(255,255,255,0.02)',
+              userSelect: 'none'
+            }}>
+              {idx + 1}
             </div>
-            <div className="faq-answer">
-              <ChevronRight size={12} className="answer-arrow" />
-              <p>{faq.a}</p>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '2rem' }}>
+              <div style={{
+                padding: '0.75rem',
+                background: 'var(--bg-active)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '8px',
+                color: 'var(--accent)'
+              }}>
+                <HelpCircle size={20} />
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', letterSpacing: '-0.2px', lineHeight: 1.3 }}>
+                {faq.q}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1.25rem', paddingLeft: '0.5rem' }}>
+              <div style={{ paddingTop: '0.4rem' }}>
+                <ChevronRight size={16} style={{ color: 'var(--accent)', opacity: 0.5 }} />
+              </div>
+              <p style={{
+                margin: 0,
+                fontSize: '0.95rem',
+                color: 'var(--text-dim)',
+                lineHeight: 1.7,
+                fontWeight: '400'
+              }}>
+                {faq.a}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
-      <style jsx="true">{`
-        .faq-view {
-          padding: 40px;
-          height: 100%;
-          overflow-y: auto;
-          background: #000;
-          color: #fff;
-        }
-        .view-header {
-          margin-bottom: 40px;
-          border-left: 2px solid #ffcc00;
-          padding-left: 20px;
-        }
-        .view-title {
-          font-size: 1.5rem;
-          font-weight: 900;
-          letter-spacing: 2px;
-          margin-bottom: 8px;
-        }
-        .view-subtitle {
-          font-size: 12px;
-          color: #444;
-          font-weight: 600;
-          letter-spacing: 1px;
-        }
-        .faq-list {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-        .faq-item {
-          background: #050505;
-          border: 1px solid #111;
-          padding: 24px;
-          border-radius: 4px;
-        }
-        .faq-question {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 14px;
-          font-weight: 800;
-          color: #fff;
-          margin-bottom: 12px;
-          letter-spacing: 0.5px;
-        }
-        .faq-icon {
-          color: #ffcc00;
-        }
-        .faq-answer {
-          display: flex;
-          gap: 10px;
-          color: #888;
-          font-size: 13px;
-          line-height: 1.6;
-          padding-left: 28px;
-        }
-        .answer-arrow {
-          margin-top: 4px;
-          color: #333;
-          flex-shrink: 0;
-        }
-      `}</style>
+
     </div>
   );
 }

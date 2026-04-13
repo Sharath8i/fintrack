@@ -174,154 +174,77 @@ export default function HistoryView({ refreshTrigger }) {
   };
 
   return (
-    <div className="history-view">
-      <div className="section-header">
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <h2 className="section-title">LEDGER_HISTORY</h2>
-          <div className="entry-count">{recentTransactions.length} ENTRIES FOUND</div>
+    <div className="history-container" style={{ paddingTop: '2rem' }}>
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '3rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
+        <div>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-2px', margin: 0 }}>LEDGER_HISTORY</h2>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '800', letterSpacing: '0.1em', marginTop: '0.5rem' }}>{recentTransactions.length} ARCHIVED_ENTRIES</div>
         </div>
         
         {recentTransactions.length > 0 && (
-          <button className="export-btn" onClick={downloadExcel}>
-            <Download size={14} />
-            <span>EXPORT_TO_EXCEL</span>
+          <button className="export-btn" onClick={downloadExcel} style={{ 
+            background: 'var(--accent)', 
+            color: '#000', 
+            border: 'none', 
+            padding: '0.75rem 1.5rem', 
+            fontSize: '0.7rem', 
+            fontWeight: '900', 
+            letterSpacing: '0.1em', 
+            borderRadius: '4px', 
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <Download size={14} /> EXPORT_RECORDS
           </button>
         )}
       </div>
 
       {loading ? (
-        <div className="loading-state">SYNCHRONIZING...</div>
+        <div style={{ textAlign: 'center', padding: '10rem 0', color: 'var(--text-muted)', fontSize: '0.8rem', letterSpacing: '0.2em' }}>SYNCHRONIZING_ACTIVE_LEDGER...</div>
       ) : recentTransactions.length > 0 ? (
-        <div className="transaction-grid">
+        <div className="ledger-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="table-head" style={{ display: 'grid', gridTemplateColumns: '120px 1fr 150px 150px', padding: '1rem 2rem', borderBottom: '1px solid var(--glass-border)', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '800', letterSpacing: '0.1em' }}>
+            <div>DATE</div>
+            <div>DESCRIPTION</div>
+            <div>CATEGORY</div>
+            <div style={{ textAlign: 'right' }}>AMOUNT</div>
+          </div>
           {recentTransactions.map(tx => (
             <div 
               key={tx._id} 
-              className="tx-card" 
+              className="table-row" 
               onClick={() => setSelectedExpense(tx)}
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '120px 1fr 150px 150px', 
+                padding: '1.5rem 2rem', 
+                borderBottom: '1px solid var(--glass-border)', 
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                alignItems: 'center'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-active)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div className="tx-main">
-                <span className="tx-date">{tx.date}</span>
-                <span className="tx-desc">{tx.description}</span>
-                <span className="tx-cat">{tx.category}</span>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-dim)' }}>{tx.date}</div>
+              <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>{tx.description}</div>
+              <div>
+                <span style={{ fontSize: '0.6rem', padding: '0.25rem 0.75rem', border: '1px solid var(--glass-border)', borderRadius: '100px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{tx.category}</span>
               </div>
-              <div className="tx-amount">₹{tx.amount.toFixed(2)}</div>
+              <div style={{ textAlign: 'right', fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-main)' }}>₹{tx.amount.toFixed(2)}</div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="empty-state">NO TRANSACTIONS RECORDED UNDER THIS IDENTITY</div>
+        <div style={{ textAlign: 'center', padding: '10rem 0', color: 'var(--text-dim)', fontSize: '0.9rem' }}>NO_RECORDS_AVAILABLE_IN_THIS_CONTEXT</div>
       )}
 
       <ExpenseModal 
         expense={selectedExpense} 
         onClose={() => setSelectedExpense(null)} 
       />
-
-      <style jsx="true">{`
-        .history-view {
-          padding: 40px;
-          max-width: 1200px;
-          margin: 0 auto;
-          width: 100%;
-        }
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          margin-bottom: 40px;
-          border-bottom: 1px solid #111;
-          padding-bottom: 20px;
-        }
-        .section-title {
-          font-weight: 900;
-          font-size: 2rem;
-          letter-spacing: -2px;
-        }
-        .entry-count {
-          font-size: 10px;
-          color: #444;
-          letter-spacing: 1.5px;
-          font-weight: 800;
-          margin-top: 4px;
-        }
-        .export-btn {
-          background: #ffcc00;
-          border: none;
-          color: #000;
-          padding: 8px 16px;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 1.5px;
-          border-radius: 2px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          transition: transform 0.1s, opacity 0.1s;
-        }
-        .export-btn:hover {
-          opacity: 0.9;
-          transform: translateY(-1px);
-        }
-        .export-btn:active {
-          transform: translateY(0);
-        }
-        .transaction-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          background: #111;
-          border: 1px solid #111;
-        }
-        .tx-card {
-          background: #000;
-          padding: 20px 30px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          cursor: pointer;
-          transition: background 0.1s;
-        }
-        .tx-card:hover {
-          background: #0a0a0a;
-        }
-        .tx-main {
-          display: flex;
-          align-items: center;
-          gap: 30px;
-        }
-        .tx-date {
-          font-family: 'DM Mono', monospace;
-          font-size: 0.7rem;
-          color: #444;
-          width: 80px;
-        }
-        .tx-desc {
-          font-weight: 600;
-          font-size: 0.95rem;
-          min-width: 200px;
-        }
-        .tx-cat {
-          font-size: 10px;
-          color: #666;
-          border: 1px solid #222;
-          padding: 2px 8px;
-          border-radius: 100px;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-        }
-        .tx-amount {
-          font-weight: 800;
-          font-size: 1.1rem;
-        }
-        .loading-state, .empty-state {
-          padding: 100px;
-          text-align: center;
-          color: #333;
-          font-weight: 900;
-          letter-spacing: 3px;
-        }
-      `}</style>
     </div>
   );
 }

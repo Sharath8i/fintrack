@@ -9,9 +9,8 @@ import { API_BASE } from '../config';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler);
 
-const CAT_COLORS  = { Transport: '#22c55e', Shopping: '#ffe792', Food: '#f87171' };
+const CAT_COLORS  = { Transport: '#3b82f6', Shopping: '#f59e0b', Food: '#ef4444' };
 const THEME_CLRS  = ['#ffe792', '#e6ae47', '#ffc562', '#ff9f43', '#f39c12'];
-const CARD_CLRS   = ['#ffffff', '#ffe792'];
 
 export default function AnalyticsView({ refreshTrigger, viewMobile }) {
   const [data, setData] = useState({
@@ -38,227 +37,140 @@ export default function AnalyticsView({ refreshTrigger, viewMobile }) {
 
   const categories = Object.keys(data.spendByCategory || {});
 
-  /* ── Bar datasets ── */
-  const barDatasets = categories.map((cat, i) => ({
-    type: 'bar', label: cat,
-    data: sortedMonths.map(m => data.monthWiseCategorySpend?.[m]?.[cat] || 0),
-    backgroundColor: THEME_CLRS[i % THEME_CLRS.length],
-    borderColor: '#000', borderWidth: 1,
-    borderRadius: 2,
-    barPercentage: 0.35,
-    categoryPercentage: 0.5,
-    hoverBackgroundColor: '#fff',
-  }));
-
-  const trendLine = {
-    type: 'line', label: 'Total',
-    data: sortedMonths.map(m => data.monthWiseSpend[m] || 0),
-    borderColor: '#fff', borderWidth: 1.5,
-    pointRadius: 3, pointBackgroundColor: '#fff',
-    backgroundColor: 'transparent', order: 0,
-  };
-
   const barData = {
-    labels: sortedMonths.length ? sortedMonths : ['No Data'],
-    datasets: barDatasets,   // no trend line — clean stacked bars only
-  };
-
-  const totalOnTop = {
-    id: 'totalOnTop',
-    afterDatasetsDraw(chart) {
-      const { ctx, data: d, scales: { y } } = chart;
-      ctx.save();
-      ctx.font = 'bold 12px Inter';
-      ctx.fillStyle = '#ffe792';
-      ctx.textAlign = 'center';
-      d.labels.forEach((_, i) => {
-        let total=0, topY=y.bottom, barX=0;
-        d.datasets.forEach((ds, di) => {
-          const meta = chart.getDatasetMeta(di);
-          if (!meta.hidden && ds.data[i]) {
-            total += ds.data[i];
-            if (meta.data[i] && meta.data[i].y < topY) {
-              topY = meta.data[i].y;
-              barX = meta.data[i].x;
-            }
-          }
-        });
-        if (total > 0 && barX) ctx.fillText(`₹${total.toLocaleString('en-IN')}`, barX, topY - 10);
-      });
-      ctx.restore();
-    }
+    labels: sortedMonths.length ? sortedMonths : ['DADOS_AUSENTES'],
+    datasets: categories.map((cat, i) => ({
+      label: cat,
+      data: sortedMonths.map(m => data.monthWiseCategorySpend?.[m]?.[cat] || 0),
+      backgroundColor: THEME_CLRS[i % THEME_CLRS.length],
+      borderRadius: 4,
+    })),
   };
 
   const barOpts = {
     maintainAspectRatio: false,
-    responsive: true,
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: { color: '#888', font: { family: 'Inter', size: 12 }, padding: 24, boxWidth: 14, boxHeight: 10 }
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-        backgroundColor: '#111',
-        titleColor: '#fff',
-        bodyColor: '#aaa',
-        borderColor: '#222',
-        borderWidth: 1,
-        callbacks: { label: c => `${c.dataset.label}: ₹${c.parsed.y.toLocaleString('en-IN')}` }
-      }
+      legend: { position: 'bottom', labels: { color: '#ffffff', font: { size: 11, weight: '800' }, padding: 30 } },
+      tooltip: { backgroundColor: 'var(--bg-elevated)', titleColor: '#fff', bodyColor: '#fff', borderColor: 'var(--glass-border)', borderWidth: 1 }
     },
     scales: {
-      x: {
-        stacked: true,
-        grid: { display: false },
-        ticks: { color: '#666', font: { size: 11, family: 'Inter' } },
-        border: { color: '#1a1a1a' }
-      },
-      y: {
-        stacked: true,
-        grid: { color: 'rgba(255,255,255,0.06)', lineWidth: 1 },
-        ticks: {
-          color: '#666',
-          font: { size: 11, family: 'Inter' },
-          callback: v => v.toLocaleString('en-IN')
-        },
-        border: { display: false },
-        suggestedMax: () => Math.max(...Object.values(data.monthWiseSpend || { _: 100 })) * 1.22
-      }
+      x: { grid: { display: false }, ticks: { color: '#ffffff', font: { size: 11, weight: '700' } } },
+      y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#ffffff', font: { size: 11, weight: '600' } } }
     }
   };
 
-  const donutOpts = { maintainAspectRatio: false, cutout: '66%',
-    plugins: { legend: { position: 'bottom', labels: { color: '#666', padding: 14, boxWidth: 8, font: { size: 10 } } } }
+  const donutOpts = { 
+    maintainAspectRatio: false, 
+    cutout: '70%',
+    plugins: { 
+      legend: { 
+        position: 'bottom', 
+        labels: { 
+          color: '#ffffff', 
+          font: { size: 12, weight: '800' }, 
+          padding: 25,
+          usePointStyle: true
+        } 
+      } 
+    }
   };
 
-  const catChart  = { labels: Object.keys(data.spendByCategory||{}), datasets:[{ data: Object.values(data.spendByCategory||{}), backgroundColor: THEME_CLRS, borderColor:'#000', borderWidth:2, hoverOffset:4 }] };
-  const cardChart = { labels: Object.keys(data.spendByCard||{}),     datasets:[{ data: Object.values(data.spendByCard||{}),     backgroundColor: CARD_CLRS,  borderColor:'#000', borderWidth:2, hoverOffset:4 }] };
-
-  const kpis = [
-    { label: 'TOTAL SPEND (ALL TIME)', value: `₹${totalAllTime.toLocaleString('en-IN',{minimumFractionDigits:2})}`, tag: '● ACTIVE',        tagColor: '#22c55e' },
-    { label: 'TOTAL THIS MONTH',       value: `₹${(data.totalThisMonth||0).toLocaleString('en-IN',{minimumFractionDigits:2})}`, tag: 'CURRENT', tagColor: '#ffe792' },
-    { label: 'TOP CATEGORY',           value: topCat,  tag: 'HIGHEST OUTFLOW', tagColor: '#f87171' },
-    { label: 'PRIMARY CARD',           value: topCard, tag: 'MOST USED',        tagColor: '#a0a0a0' },
-  ];
+  const catChart  = { labels: Object.keys(data.spendByCategory||{}), datasets:[{ data: Object.values(data.spendByCategory||{}), backgroundColor: THEME_CLRS, borderWidth: 0 }] };
+  const cardChart = { labels: Object.keys(data.spendByCard||{}),     datasets:[{ data: Object.values(data.spendByCard||{}),     backgroundColor: [THEME_CLRS[0], THEME_CLRS[1]], borderWidth: 0 }] };
 
   return (
-    <div style={{ background:'#000', color:'#fff', fontFamily:"'Inter',sans-serif", minHeight:'100%', width:'100%' }}>
+    <div className="analytics-container" style={{ padding: '2rem 0' }}>
+      <header style={{ marginBottom: '4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <h2 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2.5px', margin: 0, color: '#fff' }}>DATA_INSIGHTS</h2>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '800', letterSpacing: '0.15em', marginTop: '0.5rem' }}>QUANTUM_LEAD_FINANCE v3.0</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: '800', letterSpacing: '0.1em' }}>LAST_RECONCILIATION</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: '700' }}>{new Date().toLocaleDateString('en-GB')}</div>
+        </div>
+      </header>
 
-      {/* ── Header ── */}
-      <div style={{ padding:'28px 28px 0', marginBottom:20 }}>
-        <h1 style={{ fontSize:20, fontWeight:900, letterSpacing:0.5, margin:0 }}>Advanced Analytics</h1>
-        <p style={{ fontSize:10, color:'#444', marginTop:4, letterSpacing:0.5 }}>Get a deeper insight into your spending schedule.</p>
+      {/* ── SECTION 1: KEY PERFORMANCE INDICATORS ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '3rem' }}>
+        {[
+          { label: 'LIQUID_TOTAL', val: `₹${totalAllTime.toLocaleString()}`, sub: 'AGGREGATE_OUTFLOW', color: '#fff' },
+          { label: 'PERIOD_SPEND', val: `₹${data.totalThisMonth?.toLocaleString()}`, sub: 'CURRENT_CYCLE', color: 'var(--accent)' },
+          { label: 'TOP_SECTOR', val: topCat, sub: 'MAX_VOLUME_CATEGORY', color: '#fff' },
+          { label: 'PRIMARY_SOURCE', val: topCard, sub: 'DOMINANT_PAYMENT_METHOD', color: '#fff' }
+        ].map((kpi, idx) => (
+          <div key={idx} className="precision-panel" style={{ background: 'var(--bg-elevated)', padding: '2rem', border: '1px solid var(--glass-border)', borderRadius: '4px' }}>
+            <div style={{ fontSize: '0.7rem', color: '#fff', fontWeight: '900', letterSpacing: '0.1em', marginBottom: '1.25rem', opacity: 0.8 }}>{kpi.label}</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: '900', color: kpi.color, letterSpacing: '-0.5px' }}>{kpi.val}</div>
+            <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', marginTop: '0.75rem', fontWeight: '700' }}>{kpi.sub}</div>
+          </div>
+        ))}
       </div>
 
-      <div style={{ padding:'0 28px', display:'flex', flexDirection:'column', gap:12, paddingBottom:32 }}>
-
-        {/* ── Bar Chart ── */}
-        <div style={card}>
-          <div style={secLabel}>MONTH'S ACTIVITY TREND</div>
-          <div style={{ height: 320, position:'relative' }}>
-            {sortedMonths.length > 0
-              ? <Bar data={barData} options={barOpts} plugins={[totalOnTop]} />
-              : <Empty msg="No monthly data yet. Log expenses to see trends." />}
-          </div>
+      {/* ── SECTION 2: TREND ANALYSIS (BAR CHART) ── */}
+      <div className="analytics-section" style={{ marginBottom: '4rem' }}>
+        <div className="section-header" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--accent)', paddingLeft: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>EXPENDITURE_CHRONOLOGY</h3>
+          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0', fontWeight: '700' }}>MONTH_OVER_MONTH_SECTOR_TRENDS</p>
         </div>
-
-        {/* ── KPI Row ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:1, background:'#111', borderRadius:4, overflow:'hidden' }}>
-          {kpis.map((k,i) => (
-            <div key={i} style={{ background:'#000', padding:'16px 18px' }}>
-              <div style={{ fontSize:7.5, color:'#444', letterSpacing:2, fontWeight:800, marginBottom:8 }}>{k.label}</div>
-              <div style={{ fontSize:18, fontWeight:900, color:'#fff', letterSpacing:-0.5, wordBreak:'break-word' }}>{k.value}</div>
-              <div style={{ fontSize:8.5, color:k.tagColor, marginTop:6, fontWeight:700, letterSpacing:1 }}>{k.tag}</div>
-            </div>
-          ))}
+        <div className="precision-panel" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)', padding: '3rem' }}>
+           <div style={{ height: 450 }}>
+             <Bar data={barData} options={barOpts} />
+           </div>
         </div>
-
-        {/* ── Donut Row ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12 }}>
-          <div style={card}>
-            <div style={secLabel}>SPEND BY CATEGORY</div>
-            <div style={{ height:260 }}>
-              {Object.keys(data.spendByCategory||{}).length > 0
-                ? <Doughnut data={catChart} options={donutOpts} />
-                : <Empty msg="No category data." />}
-            </div>
-          </div>
-          <div style={card}>
-            <div style={secLabel}>SPEND BY CARD</div>
-            <div style={{ height:260 }}>
-              {Object.keys(data.spendByCard||{}).length > 0
-                ? <Doughnut data={cardChart} options={donutOpts} />
-                : <Empty msg="No card data." />}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Last 5 Transactions ── */}
-        <div style={card}>
-          <div style={secLabel}>CREDIT TRANSACTIONS (LAST 5)</div>
-          {data.recentTransactions?.length > 0 ? (
-            data.recentTransactions.map((tx) => (
-              <div key={tx._id}
-                style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                         padding:'14px 0', borderTop:'1px solid #0f0f0f' }}
-                onMouseEnter={e=>e.currentTarget.style.background='#070707'}
-                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
-              >
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#fff', marginBottom:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                    {tx.description || tx.category}
-                  </div>
-                  <div style={{ fontSize:9.5, color:'#444', letterSpacing:0.3 }}>
-                    {tx.category} &bull; {tx.date} &bull; {tx.cardType}
-                  </div>
-                  <span style={{
-                    display:'inline-block', marginTop:5, fontSize:7.5, fontWeight:800,
-                    letterSpacing:1, padding:'2px 7px', borderRadius:2,
-                    backgroundColor: CAT_COLORS[tx.category] || '#444', color:'#000'
-                  }}>
-                    {tx.category?.toUpperCase()}
-                  </span>
-                </div>
-                <div style={{ textAlign:'right', paddingLeft:16, flexShrink:0 }}>
-                  <div style={{ fontSize:15, fontWeight:900, color:'#ffe792', letterSpacing:-0.3 }}>
-                    ₹{tx.amount.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize:8.5, color:'#333', marginTop:3, letterSpacing:0.8 }}>{tx.shortId}</div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <Empty msg="No recent transactions recorded." />
-          )}
-        </div>
-
       </div>
-    </div>
-  );
-}
 
-const card = {
-  background: '#050505',
-  border: '1px solid #111',
-  borderRadius: 4,
-  padding: '14px 16px',
-};
+      {/* ── SECTION 3: ALLOCATION DASHBOARD (DOUGHNUTS) ── */}
+      <div className="analytics-section" style={{ marginBottom: '4rem' }}>
+        <div className="section-header" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #fff', paddingLeft: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>ALLOCATION_DYNAMICS</h3>
+          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0', fontWeight: '700' }}>SECTOR_BY_SECTOR_AND_METHOD_DISTRIBUTION</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+          <div className="precision-panel" style={{ background: 'var(--bg-active)', border: '1px solid var(--glass-border)', padding: '3rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#fff', fontWeight: '900', marginBottom: '2.5rem', textAlign: 'center', letterSpacing: '0.1em' }}>ALLOCATION_BY_SECTOR</div>
+            <div style={{ height: 300 }}>
+              <Doughnut data={catChart} options={donutOpts} />
+            </div>
+          </div>
+          <div className="precision-panel" style={{ background: 'var(--bg-active)', border: '1px solid var(--glass-border)', padding: '3rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#fff', fontWeight: '900', marginBottom: '2.5rem', textAlign: 'center', letterSpacing: '0.1em' }}>METHOD_EFFICIENCY</div>
+            <div style={{ height: 300 }}>
+              <Doughnut data={cardChart} options={donutOpts} />
+            </div>
+          </div>
+        </div>
+      </div>
 
-const secLabel = {
-  fontSize: 8,
-  color: '#444',
-  letterSpacing: 2.5,
-  fontWeight: 900,
-  marginBottom: 14,
-  textTransform: 'uppercase',
-};
-
-function Empty({ msg }) {
-  return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:80, color:'#333', fontSize:11 }}>
-      {msg}
+      {/* ── SECTION 4: AUDIT LOGS ── */}
+      <div className="analytics-section" style={{ marginBottom: '4rem' }}>
+         <div className="section-header" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--text-muted)', paddingLeft: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>LEDGER_SNAPSHOT</h3>
+          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0', fontWeight: '700' }}>FIVE_MOST_RECENT_PERSISTENT_ENTRIES</p>
+        </div>
+        <div className="precision-panel" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)', padding: '2rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: '#fff', borderBottom: '1px solid var(--glass-border)' }}>
+                <th style={{ padding: '1.25rem', fontWeight: '900', letterSpacing: '0.05em' }}>TIMESTAMP</th>
+                <th style={{ padding: '1.25rem', fontWeight: '900', letterSpacing: '0.05em' }}>SECTOR</th>
+                <th style={{ padding: '1.25rem', fontWeight: '900', letterSpacing: '0.05em' }}>DESCRIPTION</th>
+                <th style={{ padding: '1.25rem', fontWeight: '900', letterSpacing: '0.05em', textAlign: 'right' }}>VALUATION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data.recentTransactions || []).slice(0, 5).map((t, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <td style={{ padding: '1.25rem', color: 'var(--text-dim)', fontWeight: '600' }}>{t.date}</td>
+                  <td style={{ padding: '1.25rem' }}><span style={{ background: 'var(--bg-active)', padding: '0.3rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '2px', fontSize: '0.65rem', fontWeight: '800', color: 'var(--accent)' }}>{t.category.toUpperCase()}</span></td>
+                  <td style={{ padding: '1.25rem', color: '#fff', fontWeight: '500' }}>{t.description}</td>
+                  <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: '900', color: 'var(--accent)', fontSize: '0.9rem' }}>₹{t.amount?.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

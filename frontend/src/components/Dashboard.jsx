@@ -7,8 +7,7 @@ import AnalyticsView from './AnalyticsView';
 import OperationsView from './OperationsView';
 import FAQView from './FAQView';
 
-export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('chat');
+export default function Dashboard({ activeTab }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [totalSpend, setTotalSpend] = useState(0);
 
@@ -23,150 +22,34 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchSummary();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, activeTab]);
 
   const handleAction = (action) => {
     if (action === "REFRESH") {
       setRefreshTrigger(p => p + 1);
+      fetchSummary();
     }
   };
 
   return (
-    <div className="dashboard-container">
-      {/* SIDEBAR */}
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <div className="summary-card">
-            <span className="summary-label">TOTAL_SPEND_MONTH</span>
-            <span className="summary-value">₹{totalSpend.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button 
-            className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`}
-            onClick={() => setActiveTab('chat')}
-          >
-            AI_ASSISTANT
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            LEDGER_HISTORY
-          </button>
-
-          <button 
-            className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            DATA_INSIGHTS
-          </button>
-          <div className="nav-divider" />
-          <button 
-            className={`nav-btn ${activeTab === 'faq' ? 'active' : ''}`}
-            onClick={() => setActiveTab('faq')}
-          >
-            HELP_FAQ
-          </button>
-        </nav>
-      </aside>
-
-      {/* VIEWPORT */}
-      <section className="dashboard-viewport">
-        {activeTab === 'chat' && (
+    <div className="dashboard-viewport" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+      {activeTab === 'chat' && (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <ChatWidget onAction={handleAction} />
-        )}
-        {activeTab === 'history' && (
-          <HistoryView refreshTrigger={refreshTrigger} />
-        )}
+        </div>
+      )}
 
-        {activeTab === 'analytics' && (
-          <AnalyticsView refreshTrigger={refreshTrigger} />
-        )}
-        {activeTab === 'faq' && (
-          <FAQView />
-        )}
-      </section>
+      {activeTab === 'history' && (
+        <HistoryView refreshTrigger={refreshTrigger} />
+      )}
 
-      <style jsx="true">{`
-        .dashboard-container {
-          display: flex;
-          flex: 1;
-          background: #000;
-          overflow: hidden;
-        }
-        .dashboard-sidebar {
-          width: 220px;
-          min-width: 180px;
-          border-right: 1px solid #111;
-          display: flex;
-          flex-direction: column;
-          padding: 24px 20px;
-          background: #000;
-          flex-shrink: 0;
-        }
-        .sidebar-header {
-          margin-bottom: 50px;
-        }
-        .summary-card {
-          padding: 20px;
-          background: #0a0a0a;
-          border: 1px solid #222;
-          border-radius: 4px;
-        }
-        .summary-label {
-          display: block;
-          font-size: 8px;
-          color: #444;
-          letter-spacing: 2px;
-          font-weight: 800;
-          margin-bottom: 5px;
-        }
-        .summary-value {
-          font-size: 1.6rem;
-          font-weight: 900;
-          color: #fff;
-          font-family: 'Inter', sans-serif;
-          letter-spacing: -1px;
-        }
-        .sidebar-nav {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .nav-btn {
-          background: transparent;
-          border: none;
-          color: #444;
-          text-align: left;
-          padding: 12px 20px;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 2px;
-          cursor: pointer;
-          border-radius: 2px;
-          transition: all 0.2s;
-          text-transform: uppercase;
-        }
-        .nav-btn:hover {
-          color: #fff;
-          background: #0a0a0a;
-        }
-        .nav-btn.active {
-          background: #111;
-          color: #ffcc00;
-        }
-        .dashboard-viewport {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
-          background: #000;
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-        }
-      `}</style>
+      {activeTab === 'analytics' && (
+        <AnalyticsView refreshTrigger={refreshTrigger} />
+      )}
+
+      {activeTab === 'faq' && (
+        <FAQView />
+      )}
     </div>
   );
 }

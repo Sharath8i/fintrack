@@ -9,24 +9,24 @@ const sessions = {};
 // --- 5 FAQ Responses (inline, no dialog triggered) ---
 const FAQS = [
     {
-        keywords: ['purpose', 'who are you', 'what are you', 'what do you do', 'help me'],
-        response: 'I am the Precision Ledger AI Assistant. I can rapidly draft new expenses using Transaction Cards, analyze your spending velocity with custom charts, and export your data to Excel.'
+        keywords: ['who are you', 'how to use', 'help', 'features', 'what can you do'],
+        response: 'I am the Precision Ledger AI. You can log expenses by chatting naturally (e.g., "Spent 500 on food today"), track budgets, and view detailed analytical dashboards.'
     },
     {
-        keywords: ['categories', 'what category', 'tags', 'types of expenses'],
-        response: 'The engine currently tracks three rigorous metric categories: Transport, Shopping, and Food.'
+        keywords: ['all at once', 'multi', 'detection', 'co-referencing', 'natural', 'complex'],
+        response: 'My engineering supports **Co-referencing**: you can define amount, category, card type, description, and date all in a single sentence. I will extract all entities automatically for your review.'
     },
     {
-        keywords: ['export', 'download', 'csv', 'excel', 'report'],
-        response: 'You can instantly export your transaction history as an Excel-compatible CSV by clicking "EXPORT_TO_EXCEL" inside the LEDGER_HISTORY tab.'
+        keywords: ['mistake', 'wrong', 'change', 'edit', 'amend', 'correction', 'amendment'],
+        response: 'You can perform **Entity Amendment** at any time. Simply say "change amount to 200" or "change description to Dinner" while reviewing a draft to update it instantly.'
     },
     {
-        keywords: ['draft', 'edit', 'change before save', 'confirm'],
-        response: 'Before saving any expense, I will show you a "Transaction Draft" card. You can click "EDIT DETAILS" to amend the info or "CONFIRM ENTRY" to save it.'
+        keywords: ['profile', 'identity', 'my info', 'auto', 'automatic', 'recovery'],
+        response: 'I have secure access to your profile. I automatically retrieve your registered name, email, and phone number to pre-fill transaction logs, ensuring your identity is always consistent.'
     },
     {
-        keywords: ['track', 'budget', 'limit', 'alert', 'threshold'],
-        response: 'You can set category-specific budgets. I will instantly alert you in this chat if your monthly spending exceeds your defined limits.'
+        keywords: ['excel', 'csv', 'report', 'download', 'analytics', 'data'],
+        response: 'You can export all transaction history to Excel-ready CSV files via the "Ledger History" tab. For deep insights, visit the "Data Insights" page for real-time trend analysis.'
     }
 ];
 
@@ -42,6 +42,46 @@ function checkFAQ(message) {
     return null;
 }
 
+async function checkAnalyticalQuery(message, userId) {
+    const lower = message.toLowerCase();
+    if (!lower.includes('spend') && !lower.includes('total') && !lower.includes('how much')) return null;
+
+    let category = null;
+    if (lower.includes('transport')) category = 'Transport';
+    else if (lower.includes('shopping')) category = 'Shopping';
+    else if (lower.includes('food')) category = 'Food';
+
+    let startDate = new Date(0); // Default: all time
+    let timeLabel = "in total";
+
+    if (lower.includes('today')) {
+        startDate = new Date();
+        startDate.setHours(0,0,0,0);
+        timeLabel = "today";
+    } else if (lower.includes('this week')) {
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        timeLabel = "this week";
+    } else if (lower.includes('this month')) {
+        startDate = new Date();
+        startDate.setDate(1);
+        startDate.setHours(0,0,0,0);
+        timeLabel = "this month";
+    }
+
+    const query = { userId, createdAt: { $gte: startDate } };
+    if (category) query.category = category;
+
+    try {
+        const expenses = await Expense.find(query);
+        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        const catLabel = category ? `on **${category}**` : "across all categories";
+        return `You have spent a total of **₹${total.toFixed(2)}** ${catLabel} ${timeLabel}.`;
+    } catch (err) {
+        return null;
+    }
+}
+
 // --- Entity Extraction (Co-referencing: extracts multiple fields from one message) ---
 function extractEntities(message, currentData = {}, lastPrompt = null) {
     const data = { ...currentData };
@@ -55,7 +95,7 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     if (amendCat) { data.category = amendCat[1].charAt(0).toUpperCase() + amendCat[1].slice(1).toLowerCase(); return data; }
 
     const amendDate = message.match(/change\s+date\s+to\s+(\d{2}-\d{2}-\d{4})/i);
-    if (amendDate) { data.date = amendDate[1]; return data; }
+    if (amendDate) { data.date = amendDate[1]; delete data._dateError; return data; }
 
     const amendCard = message.match(/change\s+card\s+to\s+(debit|credit)/i);
     if (amendCard) { data.cardType = amendCard[1].charAt(0).toUpperCase() + amendCard[1].slice(1).toLowerCase() + ' Card'; return data; }
@@ -74,7 +114,6 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
             const m = message.match(pat);
             if (m) { data.amount = parseFloat(m[1]); break; }
         }
-        // If explicitly asked for amount, accept a bare number
         if (!data.amount && lastPrompt === 'amount') {
             const numMatch = message.match(/(\d+(\.\d{1,2})?)/);
             if (numMatch) data.amount = parseFloat(numMatch[1]);
@@ -106,41 +145,70 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     // --- Date ---
     if (!data.date) {
         const dateMatch = message.match(/(\d{2}-\d{2}-\d{4})/);
-        if (dateMatch) data.date = dateMatch[1];
-        else if (lower.includes('today')) {
+        if (dateMatch) {
+            data.date = dateMatch[1];
+            delete data._dateError;
+        } else if (lower.includes('today')) {
             const d = new Date();
             data.date = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
         } else if (lower.includes('yesterday')) {
             const d = new Date(Date.now() - 86400000);
             data.date = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+        } else if (lastPrompt === 'date' || message.match(/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/)) {
+            data._dateError = "Invalid date format. Please use **DD-MM-YYYY** exactly.";
         }
     }
 
     // --- Contact Number ---
     if (!data.contactNumber) {
         const phoneMatch = message.match(/(\+\d{1,4}\s?\d{10})/);
-        if (phoneMatch) data.contactNumber = phoneMatch[1];
-        else if (lastPrompt === 'contactNumber') {
-            // Accept format without +: try add +91 if 10 digits
-            const tenDigits = message.match(/^(\d{10})$/);
-            if (tenDigits) data.contactNumber = '+91 ' + tenDigits[1];
+        if (phoneMatch) {
+            const digitsOnly = phoneMatch[1].replace(/\D/g, '').slice(-10);
+            if (digitsOnly.length === 10) {
+                data.contactNumber = phoneMatch[1].replace(/\s/g, '');
+                delete data._phoneError;
+            } else {
+                data._phoneError = "The number must have exactly 10 digits after the country code.";
+            }
+        } else if (lastPrompt === 'contactNumber') {
+            const bareDigits = message.replace(/\D/g, '');
+            if (bareDigits.length >= 10) {
+                data.contactNumber = '+' + bareDigits;
+                if (!/^\+\d{1,4}\d{10}$/.test(data.contactNumber)) {
+                    data.contactNumber = null;
+                    data._phoneError = "Invalid format. Use country code + 10 digits (e.g., +919876543210).";
+                }
+            } else {
+                data._phoneError = "Please enter country code followed by exactly 10 digits.";
+            }
         }
     }
 
     // --- Email ---
     if (!data.email) {
         const emailMatch = message.match(/([\w.-]+@[\w.-]+\.\w+)/);
-        if (emailMatch) data.email = emailMatch[1];
+        if (emailMatch) {
+            data.email = emailMatch[1];
+            delete data._emailError;
+        } else if (lastPrompt === 'email') {
+            data._emailError = "Please enter a valid email address.";
+        }
     }
 
     // --- Full Name ---
     if (!data.fullName) {
         const namePattern = message.match(/(?:my name is|name is|i[''']?m)\s+([A-Za-z]+ [A-Za-z]+)/i);
-        if (namePattern) data.fullName = namePattern[1].trim();
-        else if (lastPrompt === 'fullName') {
-            // Accept a two-word response as a full name
-            const twoWords = message.trim().match(/^([A-Za-z]+)\s+([A-Za-z]+)$/);
-            if (twoWords) data.fullName = message.trim();
+        if (namePattern) {
+            data.fullName = namePattern[1].trim();
+            delete data._nameError;
+        } else if (lastPrompt === 'fullName') {
+            const parts = message.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                data.fullName = message.trim();
+                delete data._nameError;
+            } else {
+                data._nameError = "First and Last name both required. Please enter correctly.";
+            }
         }
     }
 
@@ -159,14 +227,23 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
 
 // --- Sequential missing field prompts ---
 function getMissingFieldPrompt(data) {
+    if (data._nameError)      return { field: 'fullName',       prompt: `⚠️ ${data._nameError}` };
     if (!data.fullName)       return { field: 'fullName',       prompt: "What is your full name? (First and Last name required)" };
+    
+    if (data._phoneError)     return { field: 'contactNumber',  prompt: `⚠️ ${data._phoneError}` };
     if (!data.contactNumber)  return { field: 'contactNumber',  prompt: "What is your contact number? (Include country code, e.g. +91 9876543210)" };
+    
+    if (data._emailError)     return { field: 'email',          prompt: `⚠️ ${data._emailError}` };
     if (!data.email)          return { field: 'email',          prompt: "What is your email address?" };
+    
     if (!data.cardType)       return { field: 'cardType',       prompt: "Which card type? (1. Debit Card  2. Credit Card)" };
     if (!data.category)       return { field: 'category',       prompt: "Which category? (1. Transport  2. Shopping  3. Food)" };
     if (!data.amount)         return { field: 'amount',         prompt: "How much did you spend? (Amount in ₹)" };
     if (!data.description)    return { field: 'description',    prompt: "What was this expense for? (Brief description)" };
+    
+    if (data._dateError)      return { field: 'date',           prompt: `⚠️ ${data._dateError}` };
     if (!data.date)           return { field: 'date',           prompt: "What was the date? (DD-MM-YYYY or say 'today')" };
+    
     return null;
 }
 
@@ -207,8 +284,12 @@ router.post('/', auth, async (req, res) => {
 
     // FAQ check (only in MENU state to avoid interrupting flows)
     if (session.state === 'MENU') {
+        // Check FAQs first
         const faqReply = checkFAQ(message);
-        if (faqReply) return res.json({ reply: faqReply, state: 'MENU' });
+        if (faqReply) return res.json({ reply: faqReply, state: session.state });
+
+        const analyticalReply = await checkAnalyticalQuery(message, userId);
+        if (analyticalReply) return res.json({ reply: analyticalReply, state: session.state });
     }
 
     switch (session.state) {
@@ -471,4 +552,8 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = { 
+    router, 
+    extractEntities, 
+    checkFAQ 
+};
