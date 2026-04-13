@@ -87,11 +87,10 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     const data = { ...currentData };
     const lower = message.toLowerCase().trim();
 
-    // Mapping camelCase (internal/DB) to snake_case (API/Prompt)
     const getVal = (k) => data[k];
     const setVal = (k, v) => data[k] = v;
 
-    // --- Amendment Hooks (Entity Amendment) ---
+    // --- Amendment Hooks ---
     const amendAmount = message.match(/change\s+amount\s+to\s+(\d+(\.\d{1,2})?)/i);
     if (amendAmount) { setVal('amount', parseFloat(amendAmount[1])); return data; }
 
@@ -101,141 +100,59 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     const amendDate = message.match(/change\s+date\s+to\s+(\d{2}-\d{2}-\d{4})/i);
     if (amendDate) { setVal('date', amendDate[1]); delete data._dateError; return data; }
 
-    const amendCard = message.match(/change\s+card\s+to\s+(debit|credit)/i);
-    if (amendCard) { setVal('card_type', amendCard[1].charAt(0).toUpperCase() + amendCard[1].slice(1).toLowerCase() + ' Card'); return data; }
-
-    const amendDesc = message.match(/change\s+description\s+to\s+(.+)/i);
-    if (amendDesc) { setVal('description', amendDesc[1].trim()); return data; }
-
-    const amendPhone = message.match(/change\s+contact\s+to\s+(\+?\d+)/i);
-    if (amendPhone) { setVal('contact_number', amendPhone[1]); delete data._phoneError; return data; }
-
-    const amendEmail = message.match(/change\s+email\s+to\s+([\w.-]+@[\w.-]+\.\w+)/i);
-    if (amendEmail) { setVal('email', amendEmail[1]); delete data._emailError; return data; }
-
-    const amendName = message.match(/change\s+name\s+to\s+([A-Za-z]+\s+[A-Za-z]+)/i);
-    if (amendName) { setVal('full_name', amendName[1]); delete data._nameError; return data; }
-
-    // --- Amount ---
+    // --- Identification ---
     if (!getVal('amount')) {
         const amtMatch = message.match(/(?:rs\.?|inr|₹|amount|spent|paid)\s*(\d+(\.\d{1,2})?)/i) || 
                          message.match(/(\d+(\.\d{1,2})?)\s*(?:rupees|rs\.?|inr|₹)/i);
         if (amtMatch) setVal('amount', parseFloat(amtMatch[1]));
-        else if (lastPrompt === 'amount') {
-            const numMatch = message.match(/(\d+(\.\d{1,2})?)/);
-            if (numMatch) setVal('amount', parseFloat(numMatch[1]));
-        }
     }
 
-    // --- Category Mapping ---
-    const transportKws = ['bus', 'taxi', 'cab', 'uber', 'ola', 'auto', 'metro', 'train', 'railway', 'flight', 'airplane', 'ticket', 'tickets', 'booking', 'booked', 'reservation', 'reserved', 'travel', 'travelling', 'commute', 'commuting', 'petrol', 'diesel', 'fuel', 'gas', 'refill', 'refueled', 'fuelled', 'parking', 'toll', 'fare', 'charges', 'bike', 'scooter', 'car', 'vehicle', 'ride', 'trip', 'journey', 'drop', 'pickup', 'transport', 'transportation', 'travel expense', 'mileage', 'rental', 'rent', 'rented', 'car rent', 'vehicle rent', 'transit', 'shuttle', 'road trip', 'highway', 'pass', 'travel pass', 'cab fare', 'fuel expense'];
-    const shoppingKws = ['buy', 'bought', 'purchase', 'purchased', 'purchasing', 'order', 'ordered', 'ordering', 'shopping', 'shopped', 'got', 'taken', 'picked up', 'pickup', 'grabbed', 'collect', 'collected', 'clothes', 'clothing', 'shirt', 't-shirt', 'jeans', 'pants', 'dress', 'shoes', 'sandals', 'watch', 'mobile', 'phone', 'smartphone', 'laptop', 'charger', 'electronics', 'gadget', 'accessories', 'bag', 'groceries', 'grocery', 'items', 'stuff', 'products', 'goods', 'amazon', 'flipkart', 'myntra', 'ajio', 'mall', 'store', 'shop', 'showroom', 'outlet', 'supermarket', 'hypermarket', 'market', 'sale', 'offer', 'discount', 'deal', 'combo', 'purchase item', 'billing', 'checkout', 'payment', 'invoice', 'receipt', 'retail', 'brand', 'online order', 'offline purchase'];
-    const foodKws = ['food', 'lunch', 'dinner', 'breakfast', 'brunch', 'snacks', 'snack', 'tea', 'coffee', 'juice', 'soft drink', 'cold drink', 'water', 'restaurant', 'hotel', 'cafe', 'canteen', 'mess', 'meal', 'eating', 'ate', 'dine', 'dining', 'takeaway', 'takeout', 'parcel', 'ordered food', 'had food', 'had lunch', 'had dinner', 'had breakfast', 'fast food', 'street food', 'cuisine', 'dish', 'biryani', 'pizza', 'burger', 'sandwich', 'dosa', 'idli', 'noodles', 'pasta', 'rice', 'curry', 'thali', 'sweets', 'dessert', 'ice cream', 'chocolate', 'bakery', 'cake', 'pastry', 'beverage', 'drink'];
+    // --- Category Mapping (Strict + Word Boundaries) ---
+    const transportKws = ['bus', 'taxi', 'cab', 'uber', 'ola', 'auto', 'metro', 'train', 'railway', 'flight', 'airplane', 'ticket', 'petrol', 'diesel', 'fuel', 'gas', 'car', 'ride', 'trip', 'journey', 'transport'];
+    const shoppingKws = ['buy', 'bought', 'purchase', 'shopping', 'clothes', 'shirt', 'jeans', 'laptop', 'mobile', 'phone', 'amazon', 'mall', 'store', 'market', 'stuff'];
+    const foodKws = ['food', 'lunch', 'dinner', 'breakfast', 'snacks', 'tea', 'coffee', 'juice', 'restaurant', 'cafe', 'meal', 'pizza', 'burger', 'sandwich', 'swiggy', 'zomato'];
+
+    const checkKw = (kws) => kws.some(kw => new RegExp(`\\b${kw}\\b`, 'i').test(message));
 
     if (!getVal('category')) {
-        if (lower.includes('went for dinner') || lower.includes('had food') || lower.includes('had something to eat') || lower.includes('meal') || lower.includes('dish')) {
-            setVal('category', 'Food');
-        } else if (lower.includes('booked tickets') || lower.includes('paid for ride') || lower.includes('fare') || lower.includes('ticket') || lower.includes('fuel')) {
-            setVal('category', 'Transport');
-        } else if (lower.includes('did shopping') || lower.includes('spent on random stuff') || lower.includes('invoice') || lower.includes('checkout')) {
-            setVal('category', 'Shopping');
-        } 
-        else if (['pizza', 'coffee'].some(obj => lower.includes(obj))) setVal('category', 'Food');
-        else if (['shirt', 'laptop'].some(obj => lower.includes(obj))) setVal('category', 'Shopping');
-        else if (['cab', 'fuel'].some(obj => lower.includes(obj))) setVal('category', 'Transport');
-        else if (transportKws.some(kw => lower.includes(kw))) setVal('category', 'Transport');
-        else if (shoppingKws.some(kw => lower.includes(kw))) setVal('category', 'Shopping');
-        else if (foodKws.some(kw => lower.includes(kw))) setVal('category', 'Food');
-
-        if (lastPrompt === 'category') {
-            if (lower.includes('1') || lower.includes('transport')) setVal('category', 'Transport');
-            else if (lower.includes('2') || lower.includes('shopping')) setVal('category', 'Shopping');
-            else if (lower.includes('3') || lower.includes('food')) setVal('category', 'Food');
-        }
+        if (lower.includes('went for dinner') || lower.includes('had food') || lower.includes('meal')) setVal('category', 'Food');
+        else if (lower.includes('booked tickets') || lower.includes('paid for ride')) setVal('category', 'Transport');
+        else if (lower.includes('did shopping') || lower.includes('random stuff')) setVal('category', 'Shopping');
+        else if (checkKw(['pizza', 'coffee', 'food', 'lunch', 'dinner'])) setVal('category', 'Food');
+        else if (checkKw(['shirt', 'laptop', 'shopping', 'bought', 'stuff'])) setVal('category', 'Shopping');
+        else if (checkKw(['cab', 'fuel', 'taxi', 'ride', 'bus'])) setVal('category', 'Transport');
+        else if (checkKw(transportKws)) setVal('category', 'Transport');
+        else if (checkKw(shoppingKws)) setVal('category', 'Shopping');
+        else if (checkKw(foodKws)) setVal('category', 'Food');
     }
 
     // --- Card Type ---
     if (!getVal('card_type')) {
-        if (lower.includes('debit')) setVal('card_type', 'Debit Card');
-        else if (lower.includes('credit')) setVal('card_type', 'Credit Card');
-        else if (lastPrompt === 'card_type') {
-            if (lower.includes('1') || lower.includes('debit')) setVal('card_type', 'Debit Card');
-            else if (lower.includes('2') || lower.includes('credit')) setVal('card_type', 'Credit Card');
-        }
+        if (checkKw(['debit'])) setVal('card_type', 'Debit Card');
+        else if (checkKw(['credit'])) setVal('card_type', 'Credit Card');
     }
 
     // --- Date ---
     if (!getVal('date')) {
-        const dateMatch = message.match(/(\d{2}-\d{2}-\d{4})/);
-        if (dateMatch) {
-            setVal('date', dateMatch[1]);
-            delete data._dateError;
-        } else if (lower.includes('today')) {
+        const dMatch = message.match(/(\d{2}-\d{2}-\d{4})/);
+        if (dMatch) setVal('date', dMatch[1]);
+        else if (lower.includes('today')) {
             const d = new Date();
             setVal('date', `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`);
         } else if (lower.includes('yesterday')) {
             const d = new Date(Date.now() - 86400000);
             setVal('date', `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`);
-        } else if (lastPrompt === 'date') {
-            data._dateError = "Must be DD-MM-YYYY format.";
-        }
-    }
-
-    // --- Contact Number ---
-    if (!getVal('contact_number')) {
-        const phoneMatch = message.match(/(\+\d{1,4}\s?\d{10})/);
-        if (phoneMatch) {
-            setVal('contact_number', phoneMatch[1].replace(/\s/g, ''));
-            delete data._phoneError;
-        } else if (lastPrompt === 'contact_number') {
-            const bareDigits = message.replace(/\D/g, '');
-            if (bareDigits.length >= 10) {
-                const last10 = bareDigits.slice(-10);
-                const prefix = bareDigits.length > 10 ? '+' + bareDigits.slice(0, bareDigits.length - 10) : '+91';
-                setVal('contact_number', prefix + last10);
-            } else {
-                data._phoneError = "Country code + 10 digits required.";
-            }
-        }
-    }
-
-    // --- Email ---
-    if (!getVal('email')) {
-        const emailMatch = message.match(/([\w.-]+@[\w.-]+\.\w+)/);
-        if (emailMatch) {
-            setVal('email', emailMatch[1]);
-            delete data._emailError;
-        } else if (lastPrompt === 'email') {
-            data._emailError = "Valid email required.";
-        }
-    }
-
-    // --- Full Name ---
-    if (!getVal('full_name')) {
-        const nameMatch = message.match(/(?:my name is|name is|i am|i'm)\s+([A-Za-z]+\s+[A-Za-z]+)/i);
-        if (nameMatch) {
-            setVal('full_name', nameMatch[1].trim());
-            delete data._nameError;
-        } else if (lastPrompt === 'full_name') {
-            const parts = message.trim().split(/\s+/);
-            if (parts.length >= 2) setVal('full_name', message.trim());
-            else data._nameError = "First+Last name required.";
         }
     }
 
     // --- Description ---
     if (!getVal('description')) {
-        if (lastPrompt === 'description') {
-            setVal('description', message.trim());
-        } else {
-            const objects = [...transportKws, ...shoppingKws, ...foodKws];
-            const foundObject = objects.find(obj => lower.includes(obj));
-            if (foundObject) {
-                setVal('description', `Bought ${foundObject}`);
-            } else {
-                const forMatch = message.match(/\bfor\s+([a-zA-Z][\w\s]{1,30}?)(?:\s+(?:with|using|via|on|today|yesterday)|\s*$)/i);
-                if (forMatch) setVal('description', forMatch[1].trim());
-            }
+        const forMatch = message.match(/\bfor\s+([a-zA-Z][\w\s]{1,30}?)(?:\s+(?:with|using|via|on|today|yesterday)|\s*$)/i);
+        if (forMatch) setVal('description', forMatch[1].trim());
+        else {
+            const detectedObj = [...foodKws, ...shoppingKws, ...transportKws].find(kw => new RegExp(`\\b${kw}\\b`, 'i').test(message));
+            if (detectedObj) setVal('description', `Spent on ${detectedObj}`);
+            else setVal('description', 'Miscellaneous Expense');
         }
     }
 
@@ -479,12 +396,6 @@ router.post('/', auth, async (req, res) => {
     response.bot_reply = `Hi ${injectedData.full_name}! I'm your Finance AI Agent. I've strictly validated your profile details and I'm ready to help.\n\nType "spent 200 on lunch" to log an expense, or ask me a question about your spending.`;
     return res.json(response);
 });
-
-module.exports = { 
-    router, 
-    extractEntities, 
-    checkFAQ 
-};
 
 module.exports = { 
     router, 
