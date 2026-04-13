@@ -9,24 +9,24 @@ const sessions = {};
 // --- 5 FAQ Responses (inline, no dialog triggered) ---
 const FAQS = [
     {
-        keywords: ['who are you', 'how to use', 'help', 'features', 'what can you do'],
-        response: 'I am the Precision Ledger AI. You can log expenses by chatting naturally (e.g., "Spent 500 on food today"), track budgets, and view detailed analytical dashboards.'
+        keywords: ['how to add expense', 'add expense', 'create expense', 'new expense', 'log expense'],
+        response: 'To add an expense, simply type it naturally like "Spent 500 on dinner using debit card today" or select "CREATE EXPENSE" from the menu. I will guide you through any missing details.'
     },
     {
-        keywords: ['all at once', 'multi', 'detection', 'co-referencing', 'natural', 'complex'],
-        response: 'My engineering supports **Co-referencing**: you can define amount, category, card type, description, and date all in a single sentence. I will extract all entities automatically for your review.'
+        keywords: ['what categories', 'allowed categories', 'categories allowed', 'support categories'],
+        response: 'I support three main categories:\n• **Transport** (Bus, Taxi, Fuel, Flights, etc.)\n• **Shopping** (Clothes, Electronics, Groceries, Amazon, etc.)\n• **Food** (Restaurant, Snacks, Swiggy, Zomato, etc.)'
     },
     {
-        keywords: ['mistake', 'wrong', 'change', 'edit', 'amend', 'correction', 'amendment'],
-        response: 'You can perform **Entity Amendment** at any time. Simply say "change amount to 200" or "change description to Dinner" while reviewing a draft to update it instantly.'
+        keywords: ['can i edit', 'edit expense', 'modify expense', 'change expense', 'delete expense'],
+        response: 'Yes! You can modify or delete expenses via the "MODIFY/DELETE" option in the menu. You can also edit details during the confirmation step by saying "change [field] to [value]".'
     },
     {
-        keywords: ['profile', 'identity', 'my info', 'auto', 'automatic', 'recovery'],
-        response: 'I have secure access to your profile. I automatically retrieve your registered name, email, and phone number to pre-fill transaction logs, ensuring your identity is always consistent.'
+        keywords: ['how is total calculated', 'calculation', 'total spending', 'total total'],
+        response: 'Total spending is calculated by summing up all your recorded expenses for the current month or specific categories. You can see this in the Analytics tab or by asking me "how much did I spend?".'
     },
     {
-        keywords: ['excel', 'csv', 'report', 'download', 'analytics', 'data'],
-        response: 'You can export all transaction history to Excel-ready CSV files via the "Ledger History" tab. For deep insights, visit the "Data Insights" page for real-time trend analysis.'
+        keywords: ['is my data secure', 'safe', 'privacy', 'security'],
+        response: 'Your data is highly secure. We use industry-standard encryption and secure authentication protocols to ensure your transaction history and profile details remain private and protected.'
     }
 ];
 
@@ -103,32 +103,55 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     const amendDesc = message.match(/change\s+description\s+to\s+(.+)/i);
     if (amendDesc) { data.description = amendDesc[1].trim(); return data; }
 
-    // --- Amount (Indian currency formats) ---
+    const amendPhone = message.match(/change\s+contact\s+to\s+(\+?\d+)/i);
+    if (amendPhone) { data.contactNumber = amendPhone[1]; delete data._phoneError; return data; }
+
+    const amendEmail = message.match(/change\s+email\s+to\s+([\w.-]+@[\w.-]+\.\w+)/i);
+    if (amendEmail) { data.email = amendEmail[1]; delete data._emailError; return data; }
+
+    const amendName = message.match(/change\s+name\s+to\s+([A-Za-z]+\s+[A-Za-z]+)/i);
+    if (amendName) { data.fullName = amendName[1]; delete data._nameError; return data; }
+
+    // --- Amount ---
     if (!data.amount) {
-        const amtPatterns = [
-            /(?:rs\.?|inr|₹)\s*(\d+(\.\d{1,2})?)/i,
-            /(\d+(\.\d{1,2})?)\s*(?:rupees|rs\.?|inr|₹)/i,
-            /(?:spend|spent|cost|paid|amount is|pay)\s*(?:rs\.?|inr|₹)?\s*(\d+(\.\d{1,2})?)/i,
-        ];
-        for (const pat of amtPatterns) {
-            const m = message.match(pat);
-            if (m) { data.amount = parseFloat(m[1]); break; }
-        }
-        if (!data.amount && lastPrompt === 'amount') {
+        const amtMatch = message.match(/(?:rs\.?|inr|₹|amount|spent|paid)\s*(\d+(\.\d{1,2})?)/i) || 
+                         message.match(/(\d+(\.\d{1,2})?)\s*(?:rupees|rs\.?|inr|₹)/i);
+        if (amtMatch) data.amount = parseFloat(amtMatch[1]);
+        else if (lastPrompt === 'amount') {
             const numMatch = message.match(/(\d+(\.\d{1,2})?)/);
             if (numMatch) data.amount = parseFloat(numMatch[1]);
         }
     }
 
-    // --- Category ---
+    // --- Category Mapping (Strict but Intelligent) ---
+    const transportKws = ['bus', 'taxi', 'cab', 'uber', 'ola', 'auto', 'metro', 'train', 'railway', 'flight', 'airplane', 'ticket', 'tickets', 'booking', 'booked', 'reservation', 'reserved', 'travel', 'travelling', 'commute', 'commuting', 'petrol', 'diesel', 'fuel', 'gas', 'refill', 'refueled', 'fuelled', 'parking', 'toll', 'fare', 'charges', 'bike', 'scooter', 'car', 'vehicle', 'ride', 'trip', 'journey', 'drop', 'pickup', 'transport', 'transportation', 'travel expense', 'mileage', 'rental', 'rent', 'rented', 'car rent', 'vehicle rent', 'transit', 'shuttle', 'road trip', 'highway', 'pass', 'travel pass', 'cab fare', 'fuel expense'];
+    const shoppingKws = ['buy', 'bought', 'purchase', 'purchased', 'purchasing', 'order', 'ordered', 'ordering', 'shopping', 'shopped', 'got', 'taken', 'picked up', 'pickup', 'grabbed', 'collect', 'collected', 'clothes', 'clothing', 'shirt', 't-shirt', 'jeans', 'pants', 'dress', 'shoes', 'sandals', 'watch', 'mobile', 'phone', 'smartphone', 'laptop', 'charger', 'electronics', 'gadget', 'accessories', 'bag', 'groceries', 'grocery', 'items', 'stuff', 'products', 'goods', 'amazon', 'flipkart', 'myntra', 'ajio', 'mall', 'store', 'shop', 'showroom', 'outlet', 'supermarket', 'hypermarket', 'market', 'sale', 'offer', 'discount', 'deal', 'combo', 'purchase item', 'billing', 'checkout', 'payment', 'invoice', 'receipt', 'retail', 'brand', 'online order', 'offline purchase'];
+    const foodKws = ['food', 'lunch', 'dinner', 'breakfast', 'brunch', 'snacks', 'snack', 'tea', 'coffee', 'juice', 'soft drink', 'cold drink', 'water', 'restaurant', 'hotel', 'cafe', 'canteen', 'mess', 'meal', 'eating', 'ate', 'dine', 'dining', 'takeaway', 'takeout', 'parcel', 'ordered food', 'had food', 'had lunch', 'had dinner', 'had breakfast', 'fast food', 'street food', 'cuisine', 'dish', 'biryani', 'pizza', 'burger', 'sandwich', 'dosa', 'idli', 'noodles', 'pasta', 'rice', 'curry', 'thali', 'sweets', 'dessert', 'ice cream', 'chocolate', 'bakery', 'cake', 'pastry', 'beverage', 'drink'];
+
     if (!data.category) {
-        if (lower.includes('transport')) data.category = 'Transport';
-        else if (lower.includes('shopping')) data.category = 'Shopping';
-        else if (lower.includes('food')) data.category = 'Food';
-        else if (lastPrompt === 'category') {
-            if (lower.includes('1')) data.category = 'Transport';
-            else if (lower.includes('2')) data.category = 'Shopping';
-            else if (lower.includes('3')) data.category = 'Food';
+        // 1. Match action + object / Intent phrases / Loose natural language
+        if (lower.includes('went for dinner') || lower.includes('had food') || lower.includes('had something to eat') || lower.includes('meal') || lower.includes('dish')) {
+            data.category = 'Food';
+        } else if (lower.includes('booked tickets') || lower.includes('paid for ride') || lower.includes('fare') || lower.includes('ticket') || lower.includes('fuel')) {
+            data.category = 'Transport';
+        } else if (lower.includes('did shopping') || lower.includes('spent on random stuff') || lower.includes('invoice') || lower.includes('checkout')) {
+            data.category = 'Shopping';
+        } 
+        
+        // 2. Object-based meaning (strong indicators)
+        else if (['pizza', 'coffee'].some(obj => lower.includes(obj))) data.category = 'Food';
+        else if (['shirt', 'laptop'].some(obj => lower.includes(obj))) data.category = 'Shopping';
+        else if (['cab', 'fuel'].some(obj => lower.includes(obj))) data.category = 'Transport';
+
+        // 3. Match keywords (Fallback)
+        else if (transportKws.some(kw => lower.includes(kw))) data.category = 'Transport';
+        else if (shoppingKws.some(kw => lower.includes(kw))) data.category = 'Shopping';
+        else if (foodKws.some(kw => lower.includes(kw))) data.category = 'Food';
+
+        if (lastPrompt === 'category') {
+            if (lower.includes('1') || lower.includes('transport')) data.category = 'Transport';
+            else if (lower.includes('2') || lower.includes('shopping')) data.category = 'Shopping';
+            else if (lower.includes('3') || lower.includes('food')) data.category = 'Food';
         }
     }
 
@@ -137,8 +160,8 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
         if (lower.includes('debit')) data.cardType = 'Debit Card';
         else if (lower.includes('credit')) data.cardType = 'Credit Card';
         else if (lastPrompt === 'cardType') {
-            if (lower.includes('1')) data.cardType = 'Debit Card';
-            else if (lower.includes('2')) data.cardType = 'Credit Card';
+            if (lower.includes('1') || lower.includes('debit')) data.cardType = 'Debit Card';
+            else if (lower.includes('2') || lower.includes('credit')) data.cardType = 'Credit Card';
         }
     }
 
@@ -154,8 +177,8 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
         } else if (lower.includes('yesterday')) {
             const d = new Date(Date.now() - 86400000);
             data.date = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
-        } else if (lastPrompt === 'date' || message.match(/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/)) {
-            data._dateError = "Invalid date format. Please use **DD-MM-YYYY** exactly.";
+        } else if (lastPrompt === 'date') {
+            data._dateError = "Must be DD-MM-YYYY format.";
         }
     }
 
@@ -163,23 +186,16 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     if (!data.contactNumber) {
         const phoneMatch = message.match(/(\+\d{1,4}\s?\d{10})/);
         if (phoneMatch) {
-            const digitsOnly = phoneMatch[1].replace(/\D/g, '').slice(-10);
-            if (digitsOnly.length === 10) {
-                data.contactNumber = phoneMatch[1].replace(/\s/g, '');
-                delete data._phoneError;
-            } else {
-                data._phoneError = "The number must have exactly 10 digits after the country code.";
-            }
+            data.contactNumber = phoneMatch[1].replace(/\s/g, '');
+            delete data._phoneError;
         } else if (lastPrompt === 'contactNumber') {
             const bareDigits = message.replace(/\D/g, '');
             if (bareDigits.length >= 10) {
-                data.contactNumber = '+' + bareDigits;
-                if (!/^\+\d{1,4}\d{10}$/.test(data.contactNumber)) {
-                    data.contactNumber = null;
-                    data._phoneError = "Invalid format. Use country code + 10 digits (e.g., +919876543210).";
-                }
+                const last10 = bareDigits.slice(-10);
+                const prefix = bareDigits.length > 10 ? '+' + bareDigits.slice(0, bareDigits.length - 10) : '+91';
+                data.contactNumber = prefix + last10;
             } else {
-                data._phoneError = "Please enter country code followed by exactly 10 digits.";
+                data._phoneError = "Country code + exactly 10 digits required.";
             }
         }
     }
@@ -191,24 +207,20 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
             data.email = emailMatch[1];
             delete data._emailError;
         } else if (lastPrompt === 'email') {
-            data._emailError = "Please enter a valid email address.";
+            data._emailError = "Valid email format required.";
         }
     }
 
     // --- Full Name ---
     if (!data.fullName) {
-        const namePattern = message.match(/(?:my name is|name is|i[''']?m)\s+([A-Za-z]+ [A-Za-z]+)/i);
-        if (namePattern) {
-            data.fullName = namePattern[1].trim();
+        const nameMatch = message.match(/(?:my name is|name is|i am|i'm)\s+([A-Za-z]+\s+[A-Za-z]+)/i);
+        if (nameMatch) {
+            data.fullName = nameMatch[1].trim();
             delete data._nameError;
         } else if (lastPrompt === 'fullName') {
             const parts = message.trim().split(/\s+/);
-            if (parts.length >= 2) {
-                data.fullName = message.trim();
-                delete data._nameError;
-            } else {
-                data._nameError = "First and Last name both required. Please enter correctly.";
-            }
+            if (parts.length >= 2) data.fullName = message.trim();
+            else data._nameError = "First + Last name required.";
         }
     }
 
@@ -217,8 +229,15 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
         if (lastPrompt === 'description') {
             data.description = message.trim();
         } else {
-            const forMatch = message.match(/\bfor\s+([a-zA-Z][\w\s]{1,30}?)(?:\s+(?:with|using|via|on|today|yesterday)|\s*$)/i);
-            if (forMatch) data.description = forMatch[1].trim();
+            // Auto-generate if object detected
+            const objects = [...transportKws, ...shoppingKws, ...foodKws];
+            const foundObject = objects.find(obj => lower.includes(obj));
+            if (foundObject) {
+                data.description = `Bought ${foundObject}`;
+            } else {
+                const forMatch = message.match(/\bfor\s+([a-zA-Z][\w\s]{1,30}?)(?:\s+(?:with|using|via|on|today|yesterday)|\s*$)/i);
+                if (forMatch) data.description = forMatch[1].trim();
+            }
         }
     }
 
@@ -227,28 +246,68 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
 
 // --- Sequential missing field prompts ---
 function getMissingFieldPrompt(data) {
-    if (data._nameError)      return { field: 'fullName',       prompt: `⚠️ ${data._nameError}` };
-    if (!data.fullName)       return { field: 'fullName',       prompt: "What is your full name? (First and Last name required)" };
+    const missing = [];
+    if (!data.fullName) missing.push("Full Name");
+    if (!data.amount) missing.push("Amount");
+    if (!data.category) missing.push("Category");
+    if (!data.cardType) missing.push("Card Type");
+    if (!data.contactNumber) missing.push("Contact Number");
+    if (!data.email) missing.push("Email");
+    if (!data.description) missing.push("Description");
+    if (!data.date) missing.push("Date");
+
+    if (missing.length === 0) return null;
+
+    // If it's a validation error, prioritize it
+    if (data._nameError) return { field: 'fullName', prompt: `⚠️ ${data._nameError}` };
+    if (data._phoneError) return { field: 'contactNumber', prompt: `⚠️ ${data._phoneError}` };
+    if (data._emailError) return { field: 'email', prompt: `⚠️ ${data._emailError}` };
+    if (data._dateError) return { field: 'date', prompt: `⚠️ ${data._dateError}` };
+
+    // Otherwise, show detected fields and ask for the rest
+    const detected = [];
+    if (data.amount) detected.push(`Amount: ${data.amount}`);
+    if (data.category) detected.push(`Category: ${data.category}`);
+    if (data.description) detected.push(`Description: ${data.description}`);
+
+    const replyArr = [];
+    if (detected.length > 0) {
+        replyArr.push("✅ **Detected Details**:");
+        detected.forEach(d => replyArr.push(`• ${d}`));
+        replyArr.push("");
+    }
     
-    if (data._phoneError)     return { field: 'contactNumber',  prompt: `⚠️ ${data._phoneError}` };
-    if (!data.contactNumber)  return { field: 'contactNumber',  prompt: "What is your contact number? (Include country code, e.g. +91 9876543210)" };
+    // Use the first missing field as the target for the next input, but list all
+    const firstMissingField = (function() {
+        if (!data.fullName) return 'fullName';
+        if (!data.contactNumber) return 'contactNumber';
+        if (!data.email) return 'email';
+        if (!data.cardType) return 'cardType';
+        if (!data.category) return 'category';
+        if (!data.amount) return 'amount';
+        if (!data.description) return 'description';
+        if (!data.date) return 'date';
+        return null;
+    })();
+
+    replyArr.push(`Please provide remaining details: **${missing.join(', ')}**`);
     
-    if (data._emailError)     return { field: 'email',          prompt: `⚠️ ${data._emailError}` };
-    if (!data.email)          return { field: 'email',          prompt: "What is your email address?" };
-    
-    if (!data.cardType)       return { field: 'cardType',       prompt: "Which card type? (1. Debit Card  2. Credit Card)" };
-    if (!data.category)       return { field: 'category',       prompt: "Which category? (1. Transport  2. Shopping  3. Food)" };
-    if (!data.amount)         return { field: 'amount',         prompt: "How much did you spend? (Amount in ₹)" };
-    if (!data.description)    return { field: 'description',    prompt: "What was this expense for? (Brief description)" };
-    
-    if (data._dateError)      return { field: 'date',           prompt: `⚠️ ${data._dateError}` };
-    if (!data.date)           return { field: 'date',           prompt: "What was the date? (DD-MM-YYYY or say 'today')" };
-    
-    return null;
+    return { field: firstMissingField, prompt: replyArr.join('\n') };
 }
 
 function formatSummary(d) {
-    return `Transaction detected. Please review the draft details below:`;
+    return `**Transaction Detected**
+Please review the details below:
+• **Full Name**: ${d.fullName}
+• **Amount**: ₹${d.amount}
+• **Category**: ${d.category}
+• **Description**: ${d.description}
+• **Date**: ${d.date}
+• **Card Type**: ${d.cardType}
+• **Contact Number**: ${d.contactNumber}
+• **Email**: ${d.email}
+
+**Do you want to save or modify any field?**`;
 }
 
 // --- Main Chat Router ---

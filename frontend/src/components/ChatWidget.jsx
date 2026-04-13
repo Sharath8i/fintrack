@@ -12,10 +12,14 @@ const TASK_MENU = [
 
 function TransactionDraftCard({ data, onConfirm, onEdit }) {
   if (!data) return null;
-  const merchant = data.description || "Unspecified Merchant";
+  const merchant = data.description || "Unspecified";
   const category = data.category || "General";
-  const account = data.cardType || "Standard Account";
+  const cardType = data.cardType || "Standard";
   const amount = data.amount || 0;
+  const fullName = data.fullName || "Guest User";
+  const date = data.date || "Today";
+  const contact = data.contactNumber || "N/A";
+  const email = data.email || "N/A";
   const draftId = data.shortId || "NEW-TX";
 
   return (
@@ -25,46 +29,49 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
       borderLeft: '4px solid #ffcc00',
       borderRadius: 4,
       padding: '24px',
-      marginTop: 8,
+      marginTop: 12,
       width: '100%',
       position: 'relative',
-      overflow: 'hidden'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: 2, color: '#fff', marginBottom: 4 }}>TRANSACTION DRAFT</div>
-          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1 }}>ID: {draftId}</div>
+          <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: 2, color: '#ffcc00', marginBottom: 4 }}>EXPENSE DRAFT</div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1 }}>REF: {draftId}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: -1 }}>{amount}</div>
-          <div style={{ fontSize: 10, color: '#444', marginTop: -2 }}>₹</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: -1 }}>₹{amount}</div>
+          <div style={{ fontSize: 8, color: '#444', fontWeight: 700 }}>VERIFIED AMOUNT</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px', marginBottom: 24 }}>
         <div>
-          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>MERCHANT / DESC</div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{merchant}</div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>OPERATOR NAME</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{fullName}</div>
         </div>
         <div>
-          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>CATEGORY</div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{category}</div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>ENTRY DATE</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{date}</div>
         </div>
         <div>
-          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>ACCOUNT</div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{account}</div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>MERCHANT / DESC</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{merchant}</div>
         </div>
         <div>
-          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1.5, fontWeight: 800, marginBottom: 6 }}>STATUS</div>
-          <div style={{ 
-            display: 'inline-block',
-            padding: '2px 6px',
-            background: 'rgba(255, 204, 0, 0.1)',
-            color: '#ffcc00',
-            fontSize: 8,
-            fontWeight: 900,
-            borderRadius: 2
-          }}>PENDING CONFIRMATION</div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>CATEGORY</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{category}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>PAYMENT SOURCE</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{cardType}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>CONTACT VERIFIED</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{contact}</div>
+        </div>
+        <div style={{ gridColumn: 'span 2' }}>
+          <div style={{ fontSize: 8, color: '#444', letterSpacing: 1, fontWeight: 800, marginBottom: 4 }}>REGISTERED EMAIL</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{email}</div>
         </div>
       </div>
 
@@ -72,7 +79,7 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
         <button 
           onClick={onConfirm}
           style={{
-            flex: 1,
+            flex: 2,
             background: '#ffcc00',
             border: 'none',
             color: '#000',
@@ -83,14 +90,14 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
             borderRadius: 2,
             cursor: 'pointer'
           }}
-        >CONFIRM ENTRY</button>
+        >SAVE TO LEDGER</button>
         <button 
           onClick={onEdit}
           style={{
             flex: 1,
-            background: '#0a0a0a',
+            background: 'transparent',
             border: '1px solid #222',
-            color: '#fff',
+            color: '#666',
             padding: '12px',
             fontSize: 10,
             fontWeight: 900,
@@ -98,7 +105,7 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
             borderRadius: 2,
             cursor: 'pointer'
           }}
-        >EDIT DETAILS</button>
+        >AMEND</button>
       </div>
     </div>
   );
