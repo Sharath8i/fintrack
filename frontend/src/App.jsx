@@ -7,7 +7,13 @@ import Footer from './components/Footer';
 
 const ProtectedRoute = ({ children }) => {
   const { token, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+      <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--glass-border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '1rem' }}></div>
+      <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', fontWeight: '800' }}>AUTHORIZING_SESSION...</div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
   return token ? children : <Navigate to="/login" />;
 };
 
@@ -40,8 +46,9 @@ const Layout = ({ children }) => {
   React.useEffect(() => {
     const handleClickOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
-        setShowProfile(false);
-        setIsEditing(false);
+        if (!isEditing) {
+          setShowProfile(false);
+        }
       }
     };
     if (showProfile) document.addEventListener('mousedown', handleClickOutside);
@@ -51,15 +58,14 @@ const Layout = ({ children }) => {
   // Close on ESC key
   React.useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isEditing) {
         setShowProfile(false);
-        setIsEditing(false);
         setIsNewSignup(false);
       }
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
-  }, []);
+  }, [isEditing]);
 
   const handleUpdate = async () => {
     const errors = {};
@@ -100,7 +106,26 @@ const Layout = ({ children }) => {
     }
   };
 
-  const [activeTab, setActiveTab] = React.useState('chat');
+  const [activeTab, setActiveTab] = React.useState(() => {
+    return localStorage.getItem('fintrack_active_tab') || 'chat';
+  });
+
+  const handleLogout = () => {
+    if (window.confirm("CONFIRM_SECURITY_SIGN_OUT: Are you sure you want to terminate your current session?")) {
+      logout();
+    }
+  };
+
+  React.useEffect(() => {
+    localStorage.setItem('fintrack_active_tab', activeTab);
+    const titles = {
+      chat: 'AI Assistant',
+      history: 'Ledger History',
+      analytics: 'Data Insights',
+      faq: 'Support & Help'
+    };
+    document.title = `FinTrack.AI | ${titles[activeTab] || 'Secure Ledger'}`;
+  }, [activeTab]);
 
   React.useEffect(() => {
     const handleSwitch = (e) => setActiveTab(e.detail);
@@ -148,7 +173,7 @@ const Layout = ({ children }) => {
                 {user?.name ? user.name[0].toUpperCase() : 'U'}
               </div>
             </div>
-            <button onClick={logout} style={{
+            <button onClick={handleLogout} style={{
               background: 'transparent',
               border: '1px solid var(--glass-border)',
               color: 'var(--error)',
@@ -156,8 +181,10 @@ const Layout = ({ children }) => {
               fontSize: '0.75rem',
               fontWeight: '800',
               borderRadius: '4px',
-              cursor: 'pointer'
-            }}>
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }} onMouseEnter={e => e.target.style.background = 'rgba(255, 68, 68, 0.05)'}
+              onMouseLeave={e => e.target.style.background = 'transparent'}>
               Logout
             </button>
           </div>
@@ -225,12 +252,16 @@ const Layout = ({ children }) => {
 
                 <div className="dropdown-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {isEditing ? (
-                    <button onClick={handleUpdate} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Save Changes</button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={handleUpdate} style={{ flex: 1, background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Save</button>
+                      <button onClick={() => { setIsEditing(false); setFieldErrors({}); }} style={{ flex: 1, background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--glass-border)', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Cancel</button>
+                    </div>
                   ) : (
                     <button onClick={() => setIsEditing(true)} style={{ background: 'var(--bg-active)', color: '#fff', border: '1px solid var(--glass-border)', padding: '0.85rem', fontWeight: '700', cursor: 'pointer', borderRadius: '4px' }}>Edit Profile</button>
                   )}
+
                   {!isNewSignup && (
-                    <button onClick={logout} style={{ background: 'transparent', color: 'var(--error)', border: 'none', padding: '0.5rem', fontWeight: '800', cursor: 'pointer' }}>Logout</button>
+                    <button onClick={handleLogout} style={{ background: 'transparent', color: 'var(--error)', border: 'none', padding: '0.5rem', fontWeight: '800', cursor: 'pointer' }}>Logout</button>
                   )}
                 </div>
               </div>
@@ -247,14 +278,7 @@ const Layout = ({ children }) => {
           })}
         </section>
 
-        <footer className="footer-status">
-          <div className="status-indicator">
-            <span className="dot"></span>
-            SYSTEM ONLINE_NODE v2.0.4
-          </div>
-          <div>© 2026 PRECISION LEDGER SYSTEM • ALL QUANTUM ENCRYPTED</div>
-          <div>SESSION: {user?.id?.slice(0, 8).toUpperCase() || 'VOID'}</div>
-        </footer>
+        <Footer />
       </main>
     </div>
   );
