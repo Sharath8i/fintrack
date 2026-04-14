@@ -26,16 +26,16 @@ const expenseSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Card type is required'],
     enum: {
-      values: ['Debit Card', 'Credit Card'],
-      message: '{VALUE} is not a valid card type. Must be Debit Card or Credit Card.'
+      values: ['Debit Card', 'Credit Card', 'UPI', 'Cash'],
+      message: '{VALUE} is not a valid card type. Must be Debit Card, Credit Card, UPI or Cash.'
     }
   },
   category: {
     type: String,
     required: [true, 'Category is required'],
     enum: {
-      values: ['Transport', 'Shopping', 'Food'],
-      message: '{VALUE} is not a valid category. Must be Transport, Shopping, or Food.'
+      values: ['Transport', 'Shopping', 'Food', 'Miscellaneous'],
+      message: '{VALUE} is not a valid category. Must be Transport, Shopping, Food, or Miscellaneous.'
     }
   },
   amount: {

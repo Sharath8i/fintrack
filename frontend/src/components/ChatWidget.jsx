@@ -334,32 +334,32 @@ export default function ChatWidget({ onAction }) {
 
       <div className="input-area" style={{ position: 'relative' }}>
         <div style={{ display: 'flex', gap: '8px', padding: '0 1rem 8px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-           {[
-             { label: 'ADD_EXPENSE', msg: 'Create expense' },
-             { label: 'VIEW_INSIGHTS', msg: 'Show top category' },
-             { label: 'GET_HELP', msg: 'Help' }
-           ].map((action, i) => (
-             <button
-               key={i}
-               onClick={() => handleSend(action.msg)}
-               style={{
-                 flexShrink: 0,
-                 background: 'rgba(255, 255, 255, 0.03)',
-                 border: '1px solid #222',
-                 color: '#777',
-                 padding: '4px 12px',
-                 fontSize: '9px',
-                 fontWeight: '900',
-                 borderRadius: '4px',
-                 cursor: 'pointer',
-                 letterSpacing: '1px'
-               }}
-               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = '#fff'; }}
-               onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#777'; }}
-             >
-               {action.label}
-             </button>
-           ))}
+          {[
+            { label: 'ADD_EXPENSE', msg: 'Create expense' },
+            { label: 'VIEW_INSIGHTS', msg: 'Show top category' },
+            { label: 'GET_HELP', msg: 'Help' }
+          ].map((action, i) => (
+            <button
+              key={i}
+              onClick={() => handleSend(action.msg)}
+              style={{
+                flexShrink: 0,
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid #222',
+                color: '#777',
+                padding: '4px 12px',
+                fontSize: '9px',
+                fontWeight: '900',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                letterSpacing: '1px'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#777'; }}
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
 
         {emptyWarning && (

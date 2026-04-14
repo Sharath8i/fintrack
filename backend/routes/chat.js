@@ -8,17 +8,43 @@ const sessions = {};
 
 // --- Exact Mapping to FAQView.jsx ---
 const FAQ_DATA = [
-  { q: "How do I add an expense using chat?", a: "Just type naturally! For example: \"Spent 500 on food today\" or \"Bought shoes for 2000\"." },
-  { q: "Can I type expenses in normal English?", a: "Yes, the AI understands conversational phrases like \"Cost me 300 bucks for Uber\" or \"Paid 1200 for groceries\"." },
-  { q: "Can I add multiple expenses in one sentence?", a: "Yes! You can say \"Spent 200 on snacks and 500 on auto\" and the AI will split them into separate ledger entries automatically." },
-  { q: "How do I edit an expense before saving?", a: "When the AI generates a 'Transaction Draft', you can click the 'AMEND' button or simply chat \"change amount to 600\" before confirming." },
-  { q: "What details are required to save an expense?", a: "The AI needs to detect an Amount. If Category or Description is missing, it will ask you or classify them automatically." },
-  { q: "Why is my input rejected?", a: "Inputs are rejected if they lack numerical values, or if you input negative/zero amounts (e.g. \"Spent -500\")." },
-  { q: "What insights can I see in analytics?", a: "You can view your Total Monthly Spend, Growth Trends (increase/decrease percentages), and beautiful visual breakdowns across categories." },
-  { q: "How is my spending calculated?", a: "The Analytics engine securely aggregates all confirmed ledger entries for the current calendar month to determine averages and highest spends." },
-  { q: "Can I view past transactions?", a: "Yes! Open the LEDGER_HISTORY tab to see a fully searchable, sortable list of all your archived expenses." },
-  { q: "How do I download my expense report?", a: "Go to LEDGER_HISTORY and click the solid yellow 'EXPORT_RECORDS' button to download a structured Excel-ready CSV." },
-  { q: "Hello, what can you do?", a: "I can log natural language expenses, update ledger metadata, perform multi-expense splits, and fetch rich financial analytics." }
+    { q: "How do I add an expense using chat?", a: "Just type naturally! For example: \"Spent 500 on food today\" or \"Bought shoes for 2000\"." },
+    { q: "Can I type expenses in normal English?", a: "Yes, the AI understands conversational phrases like \"Cost me 300 bucks for Uber\" or \"Paid 1200 for groceries\"." },
+    { q: "Can I add multiple expenses in one sentence?", a: "Yes! You can say \"Spent 200 on snacks and 500 on auto\" and the AI will split them into separate ledger entries automatically." },
+    { q: "How do I edit an expense before saving?", a: "When the AI generates a 'Transaction Draft', you can click the 'AMEND' button or simply chat \"change amount to 600\" before confirming." },
+    { q: "What details are required to save an expense?", a: "The AI needs to detect an Amount. If Category or Description is missing, it will ask you or classify them automatically." },
+    { q: "Why is my input rejected?", a: "Inputs are rejected if they lack numerical values, or if you input negative/zero amounts (e.g. \"Spent -500\")." },
+    { q: "What insights can I see in analytics?", a: "You can view your Total Monthly Spend, Growth Trends (increase/decrease percentages), and beautiful visual breakdowns across categories." },
+    { q: "How is my spending calculated?", a: "The Analytics engine securely aggregates all confirmed ledger entries for the current calendar month to determine averages and highest spends." },
+    { q: "Can I view past transactions?", a: "Yes! Open the LEDGER_HISTORY tab to see a fully searchable, sortable list of all your archived expenses." },
+    { q: "How do I download my expense report?", a: "Go to LEDGER_HISTORY and click the solid yellow 'EXPORT_RECORDS' button to download a structured Excel-ready CSV." },
+    { q: "Hello, what can you do?", a: "I can log natural language expenses, update ledger metadata, perform multi-expense splits, and fetch rich financial analytics." }
+];
+
+// --- Global Keywords for extraction and analytics ---
+const TRANSPORT_KWS = [
+    'bus', 'taxi', 'cab', 'uber', 'ola', 'auto', 'metro', 'train', 'railway', 'flight', 'airplane',
+    'ticket', 'tickets', 'booking', 'booked', 'travel', 'trip', 'journey', 'ride', 'commute',
+    'petrol', 'diesel', 'fuel', 'gas', 'refill', 'parking', 'toll', 'fare', 'charges',
+    'car', 'bike', 'scooter', 'vehicle', 'transport', 'transportation', 'shuttle'
+];
+
+const SHOPPING_KWS = [
+    'buy', 'bought', 'purchase', 'purchased', 'order', 'ordered', 'shopping', 'shop', 'shopped',
+    'clothes', 'shirt', 't-shirt', 'jeans', 'dress', 'shoes', 'watch',
+    'laptop', 'mobile', 'phone', 'electronics', 'gadget', 'accessories',
+    'amazon', 'flipkart', 'mall', 'store', 'shop', 'market', 'supermarket',
+    'grocery', 'groceries', 'items', 'stuff', 'things', 'products',
+    'brand', 'retail', 'sale', 'offer', 'discount', 'checkout', 'billing',
+    'powder', 'milk', 'vegetables', 'rice', 'groceries'
+];
+
+const FOOD_KWS = [
+    'food', 'lunch', 'dinner', 'breakfast', 'brunch', 'snacks', 'snack',
+    'tea', 'coffee', 'juice', 'water', 'drink', 'beverage',
+    'restaurant', 'hotel', 'cafe', 'meal', 'eat', 'ate', 'eating', 'dining',
+    'pizza', 'burger', 'sandwich', 'biryani', 'dosa', 'idli', 'noodles', 'pasta',
+    'swiggy', 'zomato', 'bakery', 'cake', 'dessert', 'ice cream'
 ];
 
 function checkFAQ(message) {
@@ -28,12 +54,12 @@ function checkFAQ(message) {
     for (const faq of FAQ_DATA) {
         // Strict mapping against the string question (ignoring punctuation/cases)
         const pureQ = faq.q.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
-        
+
         // Let's do exact mapping or 85%+ inclusion mapping
         if (lower === pureQ || lower.includes(pureQ)) {
-             return faq.a;   
+            return faq.a;
         }
-        
+
         // Additional fuzzy matching for conversational shifts
         const qWords = pureQ.split(' ').filter(w => w.length > 2);
         if (qWords.length > 0) {
@@ -49,21 +75,21 @@ async function checkAnalyticalQuery(message, userId) {
     if (!lower.includes('spend') && !lower.includes('total') && !lower.includes('how much') && !lower.includes('compare') && !lower.includes('top') && !lower.includes('where')) return null;
 
     let category = null;
-    if (lower.includes('transport')) category = 'Transport';
-    else if (lower.includes('shopping')) category = 'Shopping';
-    else if (lower.includes('food')) category = 'Food';
+    if (TRANSPORT_KWS.some(k => lower.includes(k))) category = 'Transport';
+    else if (SHOPPING_KWS.some(k => lower.includes(k))) category = 'Shopping';
+    else if (FOOD_KWS.some(k => lower.includes(k))) category = 'Food';
 
-    let startDate = new Date(0); 
+    let startDate = new Date(0);
     let timeLabel = "in total";
 
     // --- Dynamic Comparisons ---
     if (lower.includes('this month') && lower.includes('last month')) {
-        const lastMonthStart = new Date(); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1); lastMonthStart.setDate(1); lastMonthStart.setHours(0,0,0,0);
-        const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0,0,0,0);
-        
+        const lastMonthStart = new Date(); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1); lastMonthStart.setDate(1); lastMonthStart.setHours(0, 0, 0, 0);
+        const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0, 0, 0, 0);
+
         const lastMonthData = await Expense.find({ userId, createdAt: { $gte: lastMonthStart, $lt: thisMonthStart } });
         const thisMonthData = await Expense.find({ userId, createdAt: { $gte: thisMonthStart } });
-        
+
         const lastTotal = lastMonthData.reduce((s, e) => s + e.amount, 0);
         const thisTotal = thisMonthData.reduce((s, e) => s + e.amount, 0);
         const diff = thisTotal - lastTotal;
@@ -75,7 +101,7 @@ async function checkAnalyticalQuery(message, userId) {
         const expenses = await Expense.find({ userId });
         const cats = {};
         expenses.forEach(e => cats[e.category] = (cats[e.category] || 0) + e.amount);
-        const sorted = Object.entries(cats).sort((a,b) => b[1] - a[1]);
+        const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
         if (sorted.length === 0) return "You haven't logged any expenses yet!";
         return `Your highest spending is in the **${sorted[0][0]}** category, with a total volume of **₹${sorted[0][1].toFixed(0)}**.`;
     }
@@ -94,11 +120,19 @@ async function checkAnalyticalQuery(message, userId) {
     const query = { userId, createdAt: { $gte: startDate } };
     if (category) query.category = category;
 
+    // --- Support for Mobile/Email Specific queries ---
+    const phoneMatch = message.match(/\+?\d{10,14}/);
+    if (phoneMatch) query.contactNumber = phoneMatch[0];
+
+    const emailMatch = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) query.email = emailMatch[0];
+
     try {
         const expenses = await Expense.find(query);
         const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        const filterLabel = phoneMatch ? `for contact **${phoneMatch[0]}**` : (emailMatch ? `for email **${emailMatch[0]}**` : '');
         const catLabel = category ? `on **${category}**` : "across all categories";
-        return `You have spent a total of **₹${total.toFixed(0)}** ${catLabel} ${timeLabel}.`;
+        return `You have spent a total of **₹${total.toFixed(0)}** ${catLabel} ${filterLabel} ${timeLabel}.`;
     } catch (err) {
         return null;
     }
@@ -140,7 +174,7 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
             data._autoSplitReady = true;
             data._splitParts = parts.map((p, i) => ({
                 amount: parseFloat(allAmounts[i]),
-                category: transportKws.some(k => p.includes(k)) ? 'Transport' : (foodKws.some(k => p.includes(k)) ? 'Food' : (shoppingKws.some(k => p.includes(k)) ? 'Shopping' : 'Miscellaneous'))
+                category: TRANSPORT_KWS.some(k => p.includes(k)) ? 'Transport' : (FOOD_KWS.some(k => p.includes(k)) ? 'Food' : (SHOPPING_KWS.some(k => p.includes(k)) ? 'Shopping' : 'Miscellaneous'))
             }));
         }
     }
@@ -198,30 +232,6 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     }
 
     // --- 3/9/10. Category Detection (Unified & Context-Aware) ---
-    const transportKws = [
-        'bus', 'taxi', 'cab', 'uber', 'ola', 'auto', 'metro', 'train', 'railway', 'flight', 'airplane',
-        'ticket', 'tickets', 'booking', 'booked', 'travel', 'trip', 'journey', 'ride', 'commute',
-        'petrol', 'diesel', 'fuel', 'gas', 'refill', 'parking', 'toll', 'fare', 'charges',
-        'car', 'bike', 'scooter', 'vehicle', 'transport', 'transportation', 'shuttle'
-    ];
-
-    const shoppingKws = [
-        'buy', 'bought', 'purchase', 'purchased', 'order', 'ordered', 'shopping', 'shop', 'shopped',
-        'clothes', 'shirt', 't-shirt', 'jeans', 'dress', 'shoes', 'watch',
-        'laptop', 'mobile', 'phone', 'electronics', 'gadget', 'accessories',
-        'amazon', 'flipkart', 'mall', 'store', 'shop', 'market', 'supermarket',
-        'grocery', 'groceries', 'items', 'stuff', 'things', 'products',
-        'brand', 'retail', 'sale', 'offer', 'discount', 'checkout', 'billing',
-        'powder', 'milk', 'vegetables', 'rice'
-    ];
-
-    const foodKws = [
-        'food', 'lunch', 'dinner', 'breakfast', 'brunch', 'snacks', 'snack',
-        'tea', 'coffee', 'juice', 'water', 'drink', 'beverage',
-        'restaurant', 'hotel', 'cafe', 'meal', 'eat', 'ate', 'eating', 'dining',
-        'pizza', 'burger', 'sandwich', 'biryani', 'dosa', 'idli', 'noodles', 'pasta',
-        'swiggy', 'zomato', 'bakery', 'cake', 'dessert', 'ice cream'
-    ];
     // --- 6. Performance Optimization (Light) ---
     const checkMsg = (kws) => kws.some(kw => lower.includes(kw));
 
@@ -232,9 +242,9 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
         } else if (lower.match(/\b(coffee|tea|juice|water)\b/i)) {
             setVal('category', 'Food');
         } else {
-            const isFood = checkMsg(foodKws);
-            const isTransport = checkMsg(transportKws);
-            const isShopping = checkMsg(shoppingKws);
+            const isFood = checkMsg(FOOD_KWS);
+            const isTransport = checkMsg(TRANSPORT_KWS);
+            const isShopping = checkMsg(SHOPPING_KWS);
 
             // --- 1. Multi-Category Conflict ---
             const detectedCount = [isFood, isTransport, isShopping].filter(Boolean).length;
@@ -370,7 +380,7 @@ function getMissingFieldPrompt(data) {
         return {
             field: 'card_type',
             prompt: replyArr.join('\n'),
-            quick_replies: ['💳 Debit Card', '💳 Credit Card', '📱 UPI', '💵 Cash']
+            quick_replies: ['💳 Debit Card', '💳 Credit Card']
         };
     }
 
@@ -597,7 +607,7 @@ router.post('/', auth, async (req, res) => {
                         const category = session.data.category || 'Miscellaneous';
                         let desc = session.data.description;
                         if (!desc || desc === 'Miscellaneous Expense') desc = `${category} expense`;
-                        
+
                         let count = 0;
                         for (const amt of vals) {
                             await new Expense({
@@ -607,7 +617,7 @@ router.post('/', auth, async (req, res) => {
                             }).save();
                             count++;
                         }
-                        
+
                         session.state = 'MENU';
                         session.intent = 'GeneralQuery';
                         session.data = { ...injectedData };
