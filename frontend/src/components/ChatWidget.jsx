@@ -122,6 +122,36 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
   );
 }
 
+function QuickReplies({ options, onSelect }) {
+  if (!options || options.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+      {options.map((opt, i) => (
+        <button
+          key={i}
+          onClick={() => onSelect(opt)}
+          style={{
+            background: 'rgba(255, 204, 0, 0.1)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '0.7rem',
+            fontWeight: '800',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            letterSpacing: '0.05em'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#000'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 204, 0, 0.1)'; e.currentTarget.style.color = 'var(--accent)'; }}
+        >
+          {opt.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TaskControlPanel({ onSelect }) {
   return (
     <div style={{
@@ -217,13 +247,14 @@ export default function ChatWidget({ onAction }) {
         userContext: { name: user?.name, email: user?.email, phone: user?.phone }
       });
 
-      const { bot_reply, extracted_data, intent, is_ready_for_api, missing_fields } = res.data;
+      const { bot_reply, extracted_data, intent, is_ready_for_api, missing_fields, quick_replies } = res.data;
       setIsTyping(false);
 
       setMessages(prev => [...prev, {
         text: bot_reply,
         isBot: true,
         isMenu: intent === 'GeneralQuery' && !extracted_data?.amount,
+        quickReplies: quick_replies || [],
         draftData: (intent === 'CreateExpense' && (missing_fields === undefined || missing_fields.length === 0)) ? extracted_data : null
       }]);
 
@@ -259,6 +290,7 @@ export default function ChatWidget({ onAction }) {
             <div className="node-content">
               <div className="bubble">
                 {parseText(m.text)}
+                {m.quickReplies && m.isBot && <QuickReplies options={m.quickReplies} onSelect={(msg) => handleSend(msg)} />}
                 {m.isMenu && m.isBot && <TaskControlPanel onSelect={(msg) => handleSend(msg)} />}
                 {m.draftData && m.isBot && (
                   <TransactionDraftCard
@@ -280,6 +312,8 @@ export default function ChatWidget({ onAction }) {
             <div className="node-content">
               <div className="bubble" style={{ display: 'flex', gap: '4px', padding: '10px 14px' }}>
                 <style>{`
+                  @keyframes slideUpFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                  .node-content .bubble { animation: slideUpFade 0.3s ease-out both; }
                   @keyframes bounceDelay { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-4px); } }
                   .tdot { width: 6px; height: 6px; background-color: var(--accent); border-radius: 50%; display: inline-block; animation: bounceDelay 1.4s infinite ease-in-out both; }
                   .tdot1 { animation-delay: -0.32s; }
@@ -299,8 +333,37 @@ export default function ChatWidget({ onAction }) {
 
 
       <div className="input-area" style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', gap: '8px', padding: '0 1rem 8px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+           {[
+             { label: 'ADD_EXPENSE', msg: 'Create expense' },
+             { label: 'VIEW_INSIGHTS', msg: 'Show top category' },
+             { label: 'GET_HELP', msg: 'Help' }
+           ].map((action, i) => (
+             <button
+               key={i}
+               onClick={() => handleSend(action.msg)}
+               style={{
+                 flexShrink: 0,
+                 background: 'rgba(255, 255, 255, 0.03)',
+                 border: '1px solid #222',
+                 color: '#777',
+                 padding: '4px 12px',
+                 fontSize: '9px',
+                 fontWeight: '900',
+                 borderRadius: '4px',
+                 cursor: 'pointer',
+                 letterSpacing: '1px'
+               }}
+               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = '#fff'; }}
+               onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#777'; }}
+             >
+               {action.label}
+             </button>
+           ))}
+        </div>
+
         {emptyWarning && (
-          <div style={{ position: 'absolute', top: '-38px', left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#000', fontSize: '10px', padding: '6px 14px', borderRadius: '4px', fontWeight: 900, letterSpacing: '1px', boxShadow: '0 4px 12px rgba(255, 204, 0, 0.2)', transition: 'opacity 0.2s' }}>
+          <div style={{ position: 'absolute', top: '-60px', left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#000', fontSize: '10px', padding: '6px 14px', borderRadius: '4px', fontWeight: 900, letterSpacing: '1px', boxShadow: '0 4px 12px rgba(255, 204, 0, 0.2)', transition: 'opacity 0.2s' }}>
             INPUT CANNOT BE EMPTY
           </div>
         )}

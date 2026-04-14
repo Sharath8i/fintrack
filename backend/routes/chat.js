@@ -46,28 +46,48 @@ function checkFAQ(message) {
 
 async function checkAnalyticalQuery(message, userId) {
     const lower = message.toLowerCase();
-    if (!lower.includes('spend') && !lower.includes('total') && !lower.includes('how much')) return null;
+    if (!lower.includes('spend') && !lower.includes('total') && !lower.includes('how much') && !lower.includes('compare') && !lower.includes('top') && !lower.includes('where')) return null;
 
     let category = null;
     if (lower.includes('transport')) category = 'Transport';
     else if (lower.includes('shopping')) category = 'Shopping';
     else if (lower.includes('food')) category = 'Food';
 
-    let startDate = new Date(0); // Default: all time
+    let startDate = new Date(0); 
     let timeLabel = "in total";
 
+    // --- Dynamic Comparisons ---
+    if (lower.includes('this month') && lower.includes('last month')) {
+        const lastMonthStart = new Date(); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1); lastMonthStart.setDate(1); lastMonthStart.setHours(0,0,0,0);
+        const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0,0,0,0);
+        
+        const lastMonthData = await Expense.find({ userId, createdAt: { $gte: lastMonthStart, $lt: thisMonthStart } });
+        const thisMonthData = await Expense.find({ userId, createdAt: { $gte: thisMonthStart } });
+        
+        const lastTotal = lastMonthData.reduce((s, e) => s + e.amount, 0);
+        const thisTotal = thisMonthData.reduce((s, e) => s + e.amount, 0);
+        const diff = thisTotal - lastTotal;
+        const trend = diff >= 0 ? "increased by 📈" : "decreased by 📉";
+        return `Comparing month-over-month: Last month you spent **₹${lastTotal.toFixed(0)}**, and this month it's **₹${thisTotal.toFixed(0)}**. Your spending has ${trend} **₹${Math.abs(diff).toFixed(0)}**.`;
+    }
+
+    if (lower.includes('top category') || lower.includes('where am i spending the most')) {
+        const expenses = await Expense.find({ userId });
+        const cats = {};
+        expenses.forEach(e => cats[e.category] = (cats[e.category] || 0) + e.amount);
+        const sorted = Object.entries(cats).sort((a,b) => b[1] - a[1]);
+        if (sorted.length === 0) return "You haven't logged any expenses yet!";
+        return `Your highest spending is in the **${sorted[0][0]}** category, with a total volume of **₹${sorted[0][1].toFixed(0)}**.`;
+    }
+
     if (lower.includes('today')) {
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
+        startDate = new Date(); startDate.setHours(0, 0, 0, 0);
         timeLabel = "today";
     } else if (lower.includes('this week')) {
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
+        startDate = new Date(); startDate.setDate(startDate.getDate() - 7);
         timeLabel = "this week";
     } else if (lower.includes('this month')) {
-        startDate = new Date();
-        startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
+        startDate = new Date(); startDate.setDate(1); startDate.setHours(0, 0, 0, 0);
         timeLabel = "this month";
     }
 
@@ -78,7 +98,7 @@ async function checkAnalyticalQuery(message, userId) {
         const expenses = await Expense.find(query);
         const total = expenses.reduce((sum, e) => sum + e.amount, 0);
         const catLabel = category ? `on **${category}**` : "across all categories";
-        return `You have spent a total of **₹${total.toFixed(2)}** ${catLabel} ${timeLabel}.`;
+        return `You have spent a total of **₹${total.toFixed(0)}** ${catLabel} ${timeLabel}.`;
     } catch (err) {
         return null;
     }
@@ -102,13 +122,27 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     const getVal = (k) => data[k];
     const setVal = (k, v) => data[k] = v;
 
-    // --- 2. Multiple Amount Detection ---
+    // --- Smart Error Recovery: Numeric Words ---
+    const numWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'ten': 10, 'hundred': 100, 'thousand': 1000 };
+    Object.keys(numWords).forEach(w => {
+        if (lower.includes(w)) {
+            const regex = new RegExp(`\\b${w}\\b`, 'g');
+            lower = lower.replace(regex, numWords[w]);
+        }
+    });
+
+    // --- 2. Multiple Amount & Category Detection (Automatic Split) ---
     const allAmounts = message.match(/\b\d+(?:\.\d{1,2})?\b/g);
     if (allAmounts && allAmounts.length > 1) {
-        data._multipleAmounts = true;
-        // --- 1. Multi-Expense Splitting ---
-        data._splitSuggestion = true;
-        data._allAmounts = allAmounts;
+        // Find categories for each amount if possible
+        const parts = message.toLowerCase().split(/\band\b|\bplus\b|,/);
+        if (parts.length === allAmounts.length) {
+            data._autoSplitReady = true;
+            data._splitParts = parts.map((p, i) => ({
+                amount: parseFloat(allAmounts[i]),
+                category: transportKws.some(k => p.includes(k)) ? 'Transport' : (foodKws.some(k => p.includes(k)) ? 'Food' : (shoppingKws.some(k => p.includes(k)) ? 'Shopping' : 'Miscellaneous'))
+            }));
+        }
     }
 
     // --- 6. User Corrections (Entity Amendment) ---
@@ -283,16 +317,11 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
 function getMissingFieldPrompt(data) {
     // --- 1. Conflict handling ---
     if (data._conflict) {
-        return { field: 'category', prompt: "🤔 I detected multiple categories. Is this for **Food 🍔**, **Shopping 🛍️**, or **Transport 🚗**?" };
-    }
-    // --- 1. Multi-Expense Splitting ---
-    if (data._splitSuggestion && !data._splitPrompted) {
-        data._splitPrompted = true; // Ask once
-        return { field: 'split', prompt: "⚖️ I found multiple expenses. Do you want me to split them into separate entries?" };
+        return { field: 'category', prompt: "🤔 I detected multiple categories. Which one is this?", quick_replies: ['Food 🍔', 'Shopping 🛍️', 'Transport 🚗'] };
     }
     // --- 5. Missing Category Fallback ---
     if (data._needsCategory && !data.category) {
-        return { field: 'category', prompt: "💡 I couldn't auto-detect the category. Is this **Food 🍔**, **Shopping 🛍️**, or **Transport 🚗**?" };
+        return { field: 'category', prompt: "💡 I couldn't auto-detect the category. Which one is this?", quick_replies: ['Food 🍔', 'Shopping 🛍️', 'Transport 🚗'] };
     }
 
     const missing = [];
@@ -336,17 +365,38 @@ function getMissingFieldPrompt(data) {
 
     replyArr.push(`💡 **Next step:** Please tell me the **${missing[0]}**.`);
 
+    // --- Card Type Quick Replies ---
+    if (firstMissing === 'card_type') {
+        return {
+            field: 'card_type',
+            prompt: replyArr.join('\n'),
+            quick_replies: ['💳 Debit Card', '💳 Credit Card', '📱 UPI', '💵 Cash']
+        };
+    }
+
     return { field: firstMissing, prompt: replyArr.join('\n') };
 }
 
-function formatSummary(d) {
+async function formatSummary(d, userId) {
     const icon = d.category === 'Food' ? '🍔' : (d.category === 'Transport' ? '🚗' : '🛍️');
 
     // --- 6. Use Confidence Score in UX ---
     const confStatus = d._confidence ? `\n**Confidence:** ${d._confidence}` : '';
 
+    let budgetInsight = "";
+    if (d.category && d.amount) {
+        const budget = await Budget.findOne({ userId, category: d.category });
+        if (budget && budget.limit > 0) {
+            const currentSpend = await Expense.find({ userId, category: d.category, date: { $regex: new RegExp(`-${new Date().getMonth() + 1}-`) } })
+                .then(exps => exps.reduce((s, e) => s + e.amount, 0));
+            const usage = ((currentSpend + d.amount) / budget.limit) * 100;
+            if (usage >= 80) budgetInsight = `\n⚠️ **Warning:** This will put you at **${usage.toFixed(0)}%** of your ${d.category} budget!`;
+            else budgetInsight = `\n📊 **Insight:** You will be using **${usage.toFixed(0)}%** of your ${d.category} budget.`;
+        }
+    }
+
     return `### 🧾 Precision Ledger Draft
-**Status:** Verification Ready 🔒${confStatus}
+**Status:** Verification Ready 🔒${confStatus}${budgetInsight}
 
 • **Merchant/Item**: ${d.description}
 • **Category**: ${icon} ${d.category}
@@ -474,9 +524,43 @@ router.post('/', auth, async (req, res) => {
             return res.json({ intent: "GeneralQuery", bot_reply: faqReply, extracted_data: session.data });
         }
 
+        // --- 1. Conversational Memory: "Same as before" ---
+        if (cleanedMessage.includes('another') || cleanedMessage.includes('same as before') || cleanedMessage.includes('like last time')) {
+            if (session.persistent_memory) {
+                session.data = { ...session.persistent_memory };
+                session.intent = 'CreateExpense';
+                // Allow partial overrides, e.g., "but for 300"
+                session.data = extractEntities(message, session.data, null);
+                session.isProcessing = false;
+                return res.json({ intent: session.intent, bot_reply: await formatSummary(session.data, userId), extracted_data: session.data });
+            } else {
+                return res.json({ intent: "GeneralQuery", bot_reply: "🤔 I don't remember any previous expenses in this session to copy. Please add one first!" });
+            }
+        }
+
         // --- Extraction ---
         const oldIntent = session.intent;
         session.data = extractEntities(message, session.data, session.lastPrompt);
+
+        // --- 1. Automatic Multi-Expense Split (Handoff) ---
+        if (session.data._autoSplitReady) {
+            try {
+                let count = 0;
+                for (const part of session.data._splitParts) {
+                    await new Expense({
+                        userId, amount: part.amount, description: `${part.category} automated entry`, category: part.category,
+                        date: session.data.date, email: session.data.email, fullName: session.data.full_name,
+                        contactNumber: session.data.contact_number, cardType: 'Debit Card'
+                    }).save();
+                    count++;
+                }
+                session.state = 'MENU';
+                session.intent = 'GeneralQuery';
+                session.data = { ...injectedData };
+                session.isProcessing = false;
+                return res.json({ intent: 'CreateExpense', bot_reply: `⚖️ I detected multiple items and have automatically ledgered **${count} separate entries** for you!`, is_ready_for_api: true });
+            } catch (err) { }
+        }
 
         // --- 10. Debug Logging ---
         console.log(`[DEBUG OUT] Entities:`, JSON.stringify(session.data));
@@ -542,6 +626,7 @@ router.post('/', auth, async (req, res) => {
                 const promptObj = getMissingFieldPrompt(session.data);
                 session.lastPrompt = promptObj.field;
                 response.bot_reply = promptObj.prompt;
+                response.quick_replies = promptObj.quick_replies || [];
                 session.isProcessing = false;
                 return res.json(response);
             }
@@ -552,6 +637,25 @@ router.post('/', auth, async (req, res) => {
                     session.isProcessing = false;
                     return res.json({ intent: 'CreateExpense', bot_reply: `❌ Error: Missing required fields. Please provide amount and category.` });
                 }
+
+                // --- 10. Duplicate Detection (5 min window) ---
+                const recentSimilar = await Expense.findOne({
+                    userId,
+                    amount: session.data.amount,
+                    category: session.data.category,
+                    createdAt: { $gte: new Date(Date.now() - 5 * 60000) }
+                });
+
+                if (recentSimilar && !session.duplicateConfirmed) {
+                    session.duplicateConfirmed = true;
+                    session.isProcessing = false;
+                    return res.json({
+                        intent: 'CreateExpense',
+                        bot_reply: `⚠️ **Duplicate Alert:** I found an identical entry (₹${recentSimilar.amount} for ${recentSimilar.category}) logged just a few minutes ago.\n\nAre you sure you want to log this again? Say **"Yes"** to proceed.`,
+                        quick_replies: ['Yes, log anyway', 'No, cancel']
+                    });
+                }
+                session.duplicateConfirmed = false;
 
                 try {
                     const dbData = {
@@ -567,11 +671,11 @@ router.post('/', auth, async (req, res) => {
                     };
                     const saved = await new Expense(dbData).save();
 
-                    // CLEAR EVERYTHING
+                    // CLEAR EVERYTHING & COMMIT TO MEMORY
+                    session.persistent_memory = { ...session.data };
                     session.state = 'MENU';
                     session.intent = 'GeneralQuery';
                     session.data = { ...injectedData };
-                    // --- 3. Session Reset After Success ---
                     delete session.lastPrompt;
                     session.isProcessing = false;
 
@@ -586,7 +690,7 @@ router.post('/', auth, async (req, res) => {
                 }
             }
 
-            response.bot_reply = formatSummary(session.data);
+            response.bot_reply = await formatSummary(session.data, userId);
             session.isProcessing = false;
             return res.json(response);
         }
