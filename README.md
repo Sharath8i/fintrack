@@ -38,23 +38,32 @@ The application revolves around an immutable MERN stack architecture integrated 
 - **AI Controller (Express / Gemini Engine):** Client queries are pre-filtered via robust regex, routed to the Google Gemini API, where NLP identifies context ("CreateExpense", "GeneralQuery"). The engine extracts entities (`amount`, `category`, `description`) into structured JSON payloads.
 - **Ledger Model (MongoDB):** Verified transactions are permanently committed to the backend ledger. Analytics aggregation loops independently process and format spending trajectories.
 
-## Validation Rules Implemented
-- **AI Missing Field Handlers:** The NLP controller rigorously rejects transaction saves structurally missing a `category` or `amount` integer.
-- **Regex Query Filtration:** Raw AI chatbot input is validated defensively against script injection payloads before parsing.
-- **Google OAuth / JWT Gate:** Authenticated endpoints strictly reject unauthorized sessions attempting to hit ledger routes.
-- **Client-Side Float Constraints:** Data tables validate `amount` inputs to strict 2nd-decimal precision limits, locking out invalid datatype insertions.
+## 🛠️ API & Endpoint Definitions
+The Precision Ledger node communicates via a secure RESTful API. Key endpoints include:
 
-## Known Limitations
-- The integrated system relies heavily on the response speed of the Google API engine; network latency can temporarily delay the chatbot.
-- Voice-to-Text capability is securely limited to WebKit/browser-supported speech recognition boundaries.
-- Currently, single-line multi-ledger generation (e.g., "Add 50 for food and 20 for transport in one click") splits unpredictably.
+| Verb | Endpoint | Description |
+| :-- | :-- | :-- |
+| `POST` | `/api/chat` | AI Intent Detection & Transaction Entity Extraction. |
+| `GET` | `/api/expenses` | Retrieves user-specific ledger records with full filters. |
+| `PUT` | `/api/expenses/:id` | **Entity Amendment:** Updates existing record attributes. |
+| `DELETE` | `/api/expenses/:id` | Permanent removal of a ledger entry. |
+| `GET` | `/api/analytics` | Statistical aggregation of spending trajectories. |
 
-## Submission Checklist
-- [x] Folder created inside submissions/
-- [x] All source code committed to /src
-- [x] Flow diagram in /docs
-- [x] Design document in /docs
-- [x] Required screenshots in /screenshots
-- [x] No .env files or API keys committed
-- [x] This README is fully filled in
-- [x] Final push made before deadline
+## 🤖 AI Logic & Intelligence
+The system utilizes advanced NLP strategies to manage complex conversational states:
+
+- **Entity Amendment:** Users can modify specific fields during the draft process without restarting. Typing *"Change amount to 1500"* or *"Update category to Transport"* triggers the AI to update the high-fidelity draft card in real-time.
+- **Co-referencing Support:** The AI maintains a 10-message context window. It understands relative pronouns; for example, after viewing an expense, typing *"Delete **it**"* or *"Modify **that one**"* correctly identifies the active record in the session.
+- **Auto-Categorization:** Natural language inputs like *"Grabbed a coffee"* are automatically mapped to the `Food` category using semantic weight matching.
+
+## ⚠️ Known Limitations
+- **Token Latency:** Response speed is dependent on Google Gemini API availability. 
+- **Language Support:** Currently optimized for English; multi-lingual extraction is in the experimental phase.
+- **Multi-Split Edge Cases:** Handling more than 4 simultaneous categories in a single sentence (e.g., splitting a single bill across 5 distinct categories) may require manual refinement.
+
+## 📂 Submission Deliverables
+- [x] **Source Code:** Full MERN stack implementation in `/backend` and `/frontend`.
+- [x] **Screenshots:** Descriptive assets in `/screenshots` showing extraction, amendment, and insights.
+- [x] **Docs:** Architecture Design (3+ pages) and Flow Diagram in `/docs`.
+- [x] **Tests:** Batch CSV test results and engine performance report in `/tests`.
+- [x] **README:** Complete technical specification and setup guide.
