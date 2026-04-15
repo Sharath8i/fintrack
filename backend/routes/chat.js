@@ -200,6 +200,57 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
     const amendDate = message.match(/\b(?:change|update|edit)\s+date\s+(?:to\s+)?(\d{2}-\d{2}-\d{4})/i);
     if (amendDate) { setVal('date', amendDate[1]); delete data._dateError; }
 
+    // Handle "Just [Category]" selection to resolve conflicts
+    const justMatch = message.match(/\bjust\s+(food|shopping|transport)\b/i);
+    if (justMatch) {
+        const cat = justMatch[1].charAt(0).toUpperCase() + justMatch[1].slice(1).toLowerCase();
+        setVal('category', cat);
+        delete data._conflict;
+        delete data._needsSplitConfirmation;
+        delete data._detectedCategories;
+    }
+
+    const amendPhone = message.match(/\b(?:change|update|edit)\s+(?:phone|number|contact)\s+(?:to\s+)?(\+?\d+)/i);
+    if (amendPhone) { setVal('contact_number', amendPhone[1]); delete data._phoneError; }
+
+    const amendEmail = message.match(/\b(?:change|update|edit)\s+email\s+(?:to\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)/i);
+    if (amendEmail) { setVal('email', amendEmail[1]); delete data._emailError; }
+
+    // --- 9. Identity Extraction (Phone, Email, Name) ---
+    if (!getVal('contact_number') || lastPrompt === 'contact_number') {
+        const pMatch = message.match(/\+(\d{1,4})\s?(\d{10})\b/) || message.match(/\b(\d{10,14})\b/);
+        if (pMatch) {
+            let num = pMatch[0].replace(/\s+/g, '');
+            if (!num.startsWith('+')) num = '+' + num;
+
+            // Validate: +[1-4 digits][10 digits]
+            if (/^\+\d{1,4}\d{10}$/.test(num)) {
+                setVal('contact_number', num);
+                delete data._phoneError;
+            } else {
+                data._phoneError = "Must be +[CountryCode][Exactly 10 digits]";
+            }
+        }
+    }
+
+    if (!getVal('email') || lastPrompt === 'email') {
+        const eMatch = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (eMatch) {
+            setVal('email', eMatch[0]);
+            delete data._emailError;
+        }
+    }
+
+    if (!getVal('full_name') || lastPrompt === 'full_name') {
+        // Look for 2+ words if prompted or following "for"
+        const nMatch = message.match(/\bfor\s+([a-zA-ZÀ-ÿ]{2,}\s+[a-zA-ZÀ-ÿ]{2,})\b/i) ||
+            (lastPrompt === 'full_name' && message.match(/\b([a-zA-ZÀ-ÿ]{2,}\s+[a-zA-ZÀ-ÿ]{2,})\b/));
+        if (nMatch) {
+            setVal('full_name', nMatch[1].trim());
+            delete data._nameError;
+        }
+    }
+
     // --- 2. Amount Detection (Robust Regex) ---
     if (!getVal('amount')) {
         let bestVal = null;
@@ -246,10 +297,24 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
             const isTransport = checkMsg(TRANSPORT_KWS);
             const isShopping = checkMsg(SHOPPING_KWS);
 
-            // --- 1. Multi-Category Conflict ---
+            // --- 1. Multi-Category Conflict / Split Detection ---
             const detectedCount = [isFood, isTransport, isShopping].filter(Boolean).length;
             if (detectedCount > 1) {
+                const detectedCategories = [];
+                if (isFood) detectedCategories.push('Food');
+                if (isTransport) detectedCategories.push('Transport');
+                if (isShopping) detectedCategories.push('Shopping');
+
                 data._conflict = true;
+                data._detectedCategories = detectedCategories;
+
+                // Set a temporary display category to avoid "General" label in card
+                data.category = `Multiple (${detectedCategories.join(' & ')})`;
+
+                // If we have exactly one amount, it's a candidate for splitting
+                if (allAmounts && allAmounts.length === 1) {
+                    data._needsSplitConfirmation = true;
+                }
             } else if (isFood) setVal('category', 'Food');
             else if (isTransport) setVal('category', 'Transport');
             else if (isShopping) setVal('category', 'Shopping');
@@ -295,10 +360,18 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
         if (descMatch) {
             setVal('description', descMatch[1].trim());
         } else {
-            const all = [...foodKws, ...transportKws, ...shoppingKws];
-            const foundKw = all.find(kw => new RegExp(`\\b${kw}\\b`, 'i').test(lower));
-            if (foundKw) setVal('description', `Spent on ${foundKw}`);
-            else setVal('description', 'Miscellaneous Expense');
+            const allKws = [
+                { kws: FOOD_KWS, cat: 'Food' },
+                { kws: TRANSPORT_KWS, cat: 'Transport' },
+                { kws: SHOPPING_KWS, cat: 'Shopping' }
+            ];
+            let found = null;
+            for (const item of allKws) {
+                const kw = item.kws.find(k => lower.includes(k));
+                if (kw) { found = `${item.cat}: ${kw}`; break; }
+            }
+            if (found) setVal('description', found);
+            else setVal('description', 'General Expenditure');
         }
     }
 
@@ -317,7 +390,6 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
             const cleanDesc = lower.replace(/\d+(?:\.\d{1,2})?/g, '').trim();
             data.description = cleanDesc ? cleanDesc : `${data.category} expense`;
         }
-        if (!data.card_type) data.card_type = 'Debit Card';
     }
 
     return data;
@@ -325,8 +397,16 @@ function extractEntities(message, currentData = {}, lastPrompt = null) {
 
 // --- Sequential missing field prompts (Polished for VIVA) ---
 function getMissingFieldPrompt(data) {
-    // --- 1. Conflict handling ---
-    if (data._conflict) {
+    // --- 1. Split / Conflict handling (Priority) ---
+    if (data._needsSplitConfirmation && (!data.category || data.category.includes('Multiple'))) {
+        return {
+            field: 'split',
+            prompt: `🤔 I see multiple categories (**${data._detectedCategories.join(' & ')}**) for this ₹${data.amount}. How should I handle this?`,
+            quick_replies: ['Split Equally ⚖️', 'Split Manually 🔢', ...data._detectedCategories.map(c => `Just ${c}`)]
+        };
+    }
+
+    if (data._conflict && (!data.category || data.category.includes('Multiple'))) {
         return { field: 'category', prompt: "🤔 I detected multiple categories. Which one is this?", quick_replies: ['Food 🍔', 'Shopping 🛍️', 'Transport 🚗'] };
     }
     // --- 5. Missing Category Fallback ---
@@ -367,6 +447,9 @@ function getMissingFieldPrompt(data) {
     const firstMissing = (function () {
         if (!data.amount) return 'amount';
         if (!data.category) return 'category';
+        if (!data.full_name || data._nameError) return 'full_name';
+        if (!data.contact_number || data._phoneError) return 'contact_number';
+        if (!data.email || data._emailError) return 'email';
         if (!data.card_type) return 'card_type';
         if (!data.description) return 'description';
         if (!data.date) return 'date';
@@ -453,7 +536,8 @@ router.post('/', auth, async (req, res) => {
     session.lastMessage = cleanedMessage;
 
     // --- 3. Empty / Invalid Input Handling ---
-    if (!cleanedMessage || cleanedMessage.length <= 2) {
+    const isMenuChoice = /^[1-3]$/.test(cleanedMessage);
+    if (!cleanedMessage || (cleanedMessage.length <= 2 && !isMenuChoice)) {
         session.isProcessing = false;
         return res.json({ intent: "GeneralQuery", bot_reply: "Please enter like: 'Spent 500 on food'", is_ready_for_api: false });
     }
@@ -510,11 +594,10 @@ router.post('/', auth, async (req, res) => {
         const injectedData = {
             full_name: userContext?.name || "Guest User",
             contact_number: userContext?.phone || "+910000000000",
-            email: userContext?.email || "user@example.com",
-            date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
+            email: userContext?.email || "user@example.com"
         };
 
-        // Merge profile but don't overwrite
+        // Merge profile but don't overwrite user-specified values
         ['full_name', 'contact_number', 'email'].forEach(f => {
             if (!session.data[f]) session.data[f] = injectedData[f];
         });
@@ -575,15 +658,32 @@ router.post('/', auth, async (req, res) => {
         // --- 10. Debug Logging ---
         console.log(`[DEBUG OUT] Entities:`, JSON.stringify(session.data));
 
-        // --- 7. Intent Detection Expansion ---
+        // --- 7. Intent Detection Extension (Menu + NLP) ---
         const createIntents = ['create', 'add', 'spent', 'paid', 'bought', 'purchase', 'log', 'grabbed', 'got', 'had', 'ate', 'booked', 'cost', 'charged', 'used', 'gave'];
         const modifyIntents = ['modify', 'change', 'edit', 'update'];
         const deleteIntents = ['delete', 'remove'];
+        const viewIntents = ['view', 'show', 'history', 'list', 'records'];
 
-        if (createIntents.some(k => lowerMsg.includes(k))) session.intent = 'CreateExpense';
-        else if (modifyIntents.some(k => lowerMsg.includes(k))) session.intent = 'ModifyExpense';
-        else if (deleteIntents.some(k => lowerMsg.includes(k))) session.intent = 'DeleteExpense';
-        else if (session.state === 'CREATE_GATHER') session.intent = 'CreateExpense';
+        if (lowerMsg === '1' || createIntents.some(k => lowerMsg.includes(k))) {
+            session.intent = 'CreateExpense';
+            if (lowerMsg === '1') session.state = 'CREATE_GATHER';
+        } else if (lowerMsg === '2' || viewIntents.some(k => lowerMsg.includes(k))) {
+            session.intent = 'ViewExpense';
+            if (session.data.contact_number) {
+                session.state = 'VIEW_RESULTS';
+            } else {
+                session.state = 'ASK_MOBILE_VIEW';
+            }
+        } else if (lowerMsg === '3' || modifyIntents.some(k => lowerMsg.includes(k)) || deleteIntents.some(k => lowerMsg.includes(k))) {
+            session.intent = 'ModifyExpense';
+            if (session.data.contact_number) {
+                session.state = 'CHOOSE_OP_READY';
+            } else {
+                session.state = 'ASK_MOBILE_MODIFY';
+            }
+        } else if (session.state === 'CREATE_GATHER') {
+            session.intent = 'CreateExpense';
+        }
 
         if (oldIntent !== 'CreateExpense' && session.intent === 'CreateExpense') {
             session.data = { ...injectedData };
@@ -599,8 +699,159 @@ router.post('/', auth, async (req, res) => {
 
         // CREATE Flow
         if (session.intent === 'CreateExpense') {
-            // --- 1. Multi-Expense Split Handling (Complete Flow) ---
-            if (session.lastPrompt === 'split' && /yes|ok|sure|split|do it|go ahead/i.test(lowerMsg)) {
+
+            // --- 0. PRIORITIZED SPLIT & SAVE HANDLER ---
+            const isConfirmingSave = (lowerMsg.includes('yes') || lowerMsg.includes('save') || lowerMsg.includes('confirm'));
+
+            if (isConfirmingSave && (session.state === 'READY_FOR_SPLIT_SAVE' || session.data.category?.includes('Multiple'))) {
+                try {
+                    // Logic: If it's a split-ready transaction, save parts. Otherwise, fall through to single save if valid.
+                    if (session.split_results && session.split_results.length > 0) {
+                        let count = 0;
+                        const patch_name = (session.data.full_name || "Guest").includes(' ') ? session.data.full_name : `${session.data.full_name || "Guest"} User`;
+                        let patch_phone = session.data.contact_number || "+910000000000";
+                        if (!/^\+\d{1,4}\s?\d{10}$/.test(patch_phone)) {
+                            const digits = patch_phone.replace(/\D/g, '');
+                            patch_phone = `+91${digits.padStart(10, '0').slice(-10)}`;
+                        }
+
+                        for (const resItem of session.split_results) {
+                            await new Expense({
+                                userId, amount: resItem.amount,
+                                description: `${session.data.description || 'Split Expense'} - ${resItem.category}`,
+                                category: resItem.category,
+                                date: session.data.date, email: session.data.email,
+                                fullName: patch_name, contactNumber: patch_phone,
+                                cardType: session.data.card_type || 'Debit Card'
+                            }).save();
+                            count++;
+                        }
+                        session.state = 'MENU';
+                        const finalData = { ...session.data };
+                        finalData.isSaved = true;
+                        session.data = { ...injectedData };
+                        delete session.lastPrompt;
+                        session.isProcessing = false;
+                        return res.json({ intent: 'CreateExpense', bot_reply: `✅ Successfully saved **${count} separate entries** to your ledger!`, is_ready_for_api: true, extracted_data: finalData });
+                    }
+                } catch (err) {
+                    console.error("Split Save Error:", err.message);
+                    session.isProcessing = false;
+                    return res.json({ intent: 'GeneralQuery', bot_reply: `⚠️ Save failed: ${err.message}. Please click 'Amend' to fix details.` });
+                }
+            }
+
+            if (session.state === 'READY_FOR_SPLIT_SAVE' && (lowerMsg.includes('cancel') || lowerMsg.includes('no'))) {
+                session.state = 'MENU';
+                session.data = { ...injectedData };
+                session.isProcessing = false;
+                return res.json({ intent: 'GeneralQuery', bot_reply: "Save cancelled.", extracted_data: session.data });
+            }
+
+            // --- 1. Multi-Expense Split Handling ---
+            if (session.lastPrompt === 'split' && /split manually|manually/i.test(lowerMsg)) {
+                // Clear conflict flags
+                delete session.data._needsSplitConfirmation;
+                delete session.data._conflict;
+                delete session.data._detectedCategories;
+
+                session.state = 'MANUAL_SPLIT_STEP';
+                session.split_remaining = session.data.amount;
+                session.split_queue = [...session.data._detectedCategories];
+                session.split_results = [];
+                session.lastPrompt = 'manual_split_amount';
+                session.isProcessing = false;
+                return res.json({
+                    intent: 'CreateExpense',
+                    bot_reply: `🔢 Manual Split started for ₹${session.data.amount}.\nHow much was for **${session.split_queue[0]}**?`,
+                    extracted_data: null // Suppress card during process
+                });
+            }
+
+            if (session.state === 'MANUAL_SPLIT_STEP' && session.lastPrompt === 'manual_split_amount') {
+                const amt = parseFloat(cleanedMessage.match(/\d+(?:\.\d{1,2})?/)?.[0]);
+                if (isNaN(amt) || amt <= 0 || amt > session.split_remaining) {
+                    session.isProcessing = false;
+                    return res.json({ intent: 'CreateExpense', bot_reply: `⚠️ Please enter a valid amount (Max remaining: ₹${session.split_remaining}) for **${session.split_queue[0]}**.` });
+                }
+
+                const currentCat = session.split_queue.shift();
+                session.split_results.push({ category: currentCat, amount: amt });
+                session.split_remaining = (session.split_remaining - amt).toFixed(2);
+
+                if (session.split_queue.length === 1) {
+                    // Only one category left, auto-assign remaining
+                    const lastCat = session.split_queue.shift();
+                    session.split_results.push({ category: lastCat, amount: parseFloat(session.split_remaining) });
+
+                    session.state = 'READY_FOR_SPLIT_SAVE';
+                    session.lastPrompt = 'confirm_final_split';
+
+                    // Delay card if fields missing
+                    const req = ['amount', 'description', 'category', 'card_type', 'date', 'full_name', 'contact_number', 'email'];
+                    const missing = req.filter(f => !session.data[f]);
+                    if (missing.length > 0) {
+                        session.state = 'CREATE_GATHER';
+                        const promptObj = getMissingFieldPrompt(session.data);
+                        session.lastPrompt = promptObj.field;
+                        session.isProcessing = false;
+                        return res.json({ intent: 'CreateExpense', bot_reply: `⚖️ **Manual Split Calculated.**\nBut I still need some details: ${promptObj.prompt}`, quick_replies: promptObj.quick_replies, extracted_data: null });
+                    }
+
+                    const breakdown = session.split_results.map(r => `• **₹${r.amount}** for ${r.category}`).join('\n');
+                    session.isProcessing = false;
+                    return res.json({
+                        intent: 'CreateExpense',
+                        bot_reply: `⚖️ **Manual Split Calculated:**\n${breakdown}\n\nReady to save these entries to your ledger?`,
+                        quick_replies: ['Yes, Save All ✅', 'Cancel'],
+                        extracted_data: session.data
+                    });
+                } else {
+                    session.isProcessing = false;
+                    return res.json({
+                        intent: 'CreateExpense',
+                        bot_reply: `Got it. ₹${amt} for ${currentCat}.\nNow, how much for **${session.split_queue[0]}**? (Remaining: ₹${session.split_remaining})`,
+                        extracted_data: null
+                    });
+                }
+            }
+
+            if (session.lastPrompt === 'split' && /split equally|equally/i.test(lowerMsg)) {
+                // If it was a manual split triggered by multiple categories but one amount
+                if (session.data._needsSplitConfirmation && session.data.amount) {
+                    // Clear conflict flags
+                    delete session.data._needsSplitConfirmation;
+                    delete session.data._conflict;
+                    const cats = session.data._detectedCategories;
+                    delete session.data._detectedCategories;
+
+                    const amt = session.data.amount;
+                    const splitAmt = (amt / cats.length).toFixed(2);
+
+                    session.split_results = cats.map(c => ({ category: c, amount: parseFloat(splitAmt) }));
+                    session.state = 'READY_FOR_SPLIT_SAVE';
+                    session.lastPrompt = 'confirm_final_split';
+
+                    // Delay card if fields missing
+                    const req = ['amount', 'description', 'category', 'card_type', 'date', 'full_name', 'contact_number', 'email'];
+                    const missing = req.filter(f => !session.data[f]);
+                    if (missing.length > 0) {
+                        session.state = 'CREATE_GATHER';
+                        const promptObj = getMissingFieldPrompt(session.data);
+                        session.lastPrompt = promptObj.field;
+                        session.isProcessing = false;
+                        return res.json({ intent: 'CreateExpense', bot_reply: `⚖️ **Equal Split Projected.**\n${promptObj.prompt}`, quick_replies: promptObj.quick_replies, extracted_data: null });
+                    }
+
+                    session.isProcessing = false;
+                    return res.json({
+                        intent: 'CreateExpense',
+                        bot_reply: `⚖️ **Equal Split Projected for ${cats.length} categories.**\nReview the details and click **Save to Ledger** to finalize.`,
+                        quick_replies: ['Yes, Save All ✅', 'Cancel'],
+                        extracted_data: session.data
+                    });
+                }
+
                 if (session.data._allAmounts && session.data._allAmounts.length > 1) {
                     try {
                         const vals = session.data._allAmounts.map(v => parseFloat(v)).filter(v => v > 0);
@@ -624,22 +875,32 @@ router.post('/', auth, async (req, res) => {
                         delete session.lastPrompt;
                         session.isProcessing = false;
                         return res.json({ intent: 'CreateExpense', bot_reply: `✅ Successfully created ${count} split expense entries!`, is_ready_for_api: true });
-                    } catch (err) { }
+                    } catch (err) {
+                        session.isProcessing = false;
+                        return res.json({ intent: "GeneralQuery", bot_reply: `⚠️ Error saving parts: ${err.message}` });
+                    }
                 }
             }
 
             const reqFields = ['amount', 'description', 'category', 'card_type', 'date', 'full_name', 'contact_number', 'email'];
             response.missing_fields = reqFields.filter(f => !session.data[f]);
 
-            if (response.missing_fields.length > 0) {
+            if (response.missing_fields.length > 0 || session.data._needsSplitConfirmation) {
                 session.state = 'CREATE_GATHER';
                 const promptObj = getMissingFieldPrompt(session.data);
                 session.lastPrompt = promptObj.field;
                 response.bot_reply = promptObj.prompt;
                 response.quick_replies = promptObj.quick_replies || [];
+
+                // Suppress card if we are in a split prompt to avoid confusion
+                if (promptObj.field === 'split') {
+                    response.extracted_data = null;
+                }
+
                 session.isProcessing = false;
                 return res.json(response);
             }
+
 
             if (['yes', 'confirm', 'save'].includes(lowerMsg)) {
                 // --- 7. Final Validation Before Save ---
@@ -652,7 +913,8 @@ router.post('/', auth, async (req, res) => {
                 const recentSimilar = await Expense.findOne({
                     userId,
                     amount: session.data.amount,
-                    category: session.data.category,
+                    category: session.data.category || "Multi-Category",
+                    description: session.data.description,
                     createdAt: { $gte: new Date(Date.now() - 5 * 60000) }
                 });
 
@@ -667,7 +929,20 @@ router.post('/', auth, async (req, res) => {
                 }
                 session.duplicateConfirmed = false;
 
+                if (session.data.category?.includes('Multiple')) {
+                    session.isProcessing = false;
+                    return res.json({ intent: 'CreateExpense', bot_reply: `⚠️ Cannot save multiple categories directly. Please use the split flow or amend to a single category.` });
+                }
+
                 try {
+                    // Data Patching for strict validation
+                    const patch_name = (session.data.full_name || "Guest").includes(' ') ? session.data.full_name : `${session.data.full_name || "Guest"} User`;
+                    let patch_phone = session.data.contact_number || "+910000000000";
+                    if (!/^\+\d{1,4}\s?\d{10}$/.test(patch_phone)) {
+                        const digits = patch_phone.replace(/\D/g, '');
+                        patch_phone = `+91${digits.padStart(10, '0').slice(-10)}`;
+                    }
+
                     const dbData = {
                         userId,
                         amount: session.data.amount,
@@ -675,8 +950,8 @@ router.post('/', auth, async (req, res) => {
                         category: session.data.category,
                         date: session.data.date,
                         email: session.data.email,
-                        fullName: session.data.full_name,
-                        contactNumber: session.data.contact_number,
+                        fullName: patch_name,
+                        contactNumber: patch_phone,
                         cardType: session.data.card_type
                     };
                     const saved = await new Expense(dbData).save();
@@ -705,12 +980,119 @@ router.post('/', auth, async (req, res) => {
             return res.json(response);
         }
 
+
+        // --- 2. VIEW EXPENSE BY MOBILE ---
+        if (session.intent === 'ViewExpense') {
+            if (session.state === 'ASK_MOBILE_VIEW' || session.state === 'VIEW_RESULTS') {
+                const phoneMatch = message.match(/\+?\d{10,14}/);
+                const num = phoneMatch ? (phoneMatch[0].startsWith('+') ? phoneMatch[0] : `+91${phoneMatch[0]}`) : session.data.contact_number;
+
+                if (num) {
+                    const expenses = await Expense.find({ userId, contactNumber: num }).limit(5);
+                    if (expenses.length === 0) {
+                        session.isProcessing = false;
+                        return res.json({ intent: 'ViewExpense', bot_reply: `🤔 I couldn't find any records for **${num}**. Would you like to try another number?` });
+                    }
+                    const list = expenses.map(e => `• ID: \`${e.shortId}\` | ₹${e.amount} [${e.category}] - ${e.date}`).join('\n');
+                    session.state = 'MENU';
+                    session.isProcessing = false;
+                    return res.json({ intent: 'ViewExpense', bot_reply: `📋 **Records for ${num}:**\n${list}\n\nAnything else?` });
+                }
+                session.isProcessing = false;
+                return res.json({ intent: 'ViewExpense', bot_reply: "Please provide the 📞 **Mobile Number** to retrieve records." });
+            }
+        }
+
+        // --- 3. MODIFY / DELETE BY MOBILE ---
+        if (session.intent === 'ModifyExpense' || session.intent === 'DeleteExpense') {
+            const idMatch = message.match(/\b([A-Z0-9]{6})\b/i);
+            if (idMatch && !['CANCEL', 'DELETE', 'UPDATE'].includes(idMatch[1].toUpperCase())) {
+                const targetId = idMatch[1].toUpperCase();
+                const specificExp = await Expense.findOne({ userId, shortId: targetId });
+                if (specificExp) {
+                    session.selectedId = specificExp._id;
+                    session.state = 'CHOOSE_OP';
+                    session.isProcessing = false;
+                    return res.json({ 
+                        intent: 'ModifyExpense', 
+                        bot_reply: `🔎 Found record [\`${specificExp.shortId}\`]: **₹${specificExp.amount}** for **${specificExp.category}**.\nWhat would you like to do?`,
+                        quick_replies: ['Change Date 📅', 'Delete Expense 🗑️', 'Cancel'] 
+                    });
+                }
+            }
+
+            if (session.state === 'ASK_MOBILE_MODIFY' || session.state === 'CHOOSE_OP_READY') {
+                const phoneMatch = message.match(/\+?\d{10,14}/);
+                const num = phoneMatch ? (phoneMatch[0].startsWith('+') ? phoneMatch[0] : `+91${phoneMatch[0]}`) : session.data.contact_number;
+
+                if (num) {
+                    const lastExp = await Expense.findOne({ userId, contactNumber: num }).sort({ createdAt: -1 });
+                    if (!lastExp) {
+                        session.isProcessing = false;
+                        return res.json({ intent: 'ModifyExpense', bot_reply: `🤔 No records found for **${num}**. Please check the number.` });
+                    }
+                    session.selectedId = lastExp._id;
+                    session.state = 'CHOOSE_OP';
+                    session.isProcessing = false;
+                    return res.json({
+                        intent: 'ModifyExpense',
+                        bot_reply: `🔎 Found your **last record** [\`${lastExp.shortId}\`] for **${num}**: **₹${lastExp.amount}** for **${lastExp.category}**.\nWhat would you like to do? (Or provide a specific **ID** like \`OIQWH5\`)`,
+                        quick_replies: ['Change Date 📅', 'Delete Expense 🗑️', 'Cancel']
+                    });
+                }
+                session.isProcessing = false;
+                return res.json({ intent: 'ModifyExpense', bot_reply: "Please provide the 📞 **Mobile Number** (or specific **Short ID**) to manage records." });
+            }
+
+            if (session.state === 'CHOOSE_OP') {
+                if (lowerMsg.includes('date')) {
+                    session.state = 'AWAIT_NEW_DATE';
+                    session.isProcessing = false;
+                    return res.json({ intent: 'ModifyExpense', bot_reply: "Enter the new **Date** (DD-MM-YYYY):" });
+                } else if (lowerMsg.includes('delete')) {
+                    session.state = 'AWAIT_DELETE_CONFIRM';
+                    session.isProcessing = false;
+                    return res.json({ intent: 'ModifyExpense', bot_reply: "⚠️ Are you sure you want to permanently delete this record? (Yes/No)", quick_replies: ['Yes', 'No'] });
+                } else {
+                    session.state = 'MENU';
+                    session.isProcessing = false;
+                    return res.json({ intent: 'GeneralQuery', bot_reply: "Operation cancelled." });
+                }
+            }
+
+            if (session.state === 'AWAIT_NEW_DATE') {
+                const dMatch = message.match(/(\d{2}-\d{2}-\d{4})/) || message.match(/(\d{2}\/\d{2}\/\d{4})/);
+                if (dMatch) {
+                    const newDate = dMatch[1].replace(/\//g, '-');
+                    await Expense.findByIdAndUpdate(session.selectedId, { date: newDate });
+                    session.state = 'MENU';
+                    session.isProcessing = false;
+                    return res.json({ intent: 'ModifyExpense', bot_reply: `✅ Date updated to **${newDate}** successfully!`, is_ready_for_api: true });
+                }
+                session.isProcessing = false;
+                return res.json({ intent: 'ModifyExpense', bot_reply: "Please enter a valid date: DD-MM-YYYY" });
+            }
+
+            if (session.state === 'AWAIT_DELETE_CONFIRM') {
+                if (['yes', 'confirm', 'ok'].includes(lowerMsg)) {
+                    await Expense.findByIdAndDelete(session.selectedId);
+                    session.state = 'MENU';
+                    session.isProcessing = false;
+                    return res.json({ intent: 'ModifyExpense', bot_reply: "🗑️ Expense record deleted successfully.", is_ready_for_api: true });
+                }
+                session.state = 'MENU';
+                session.isProcessing = false;
+                return res.json({ intent: 'ModifyExpense', bot_reply: "Delete aborted." });
+            }
+        }
+
         // --- 5. Improve Fallback Response UX ---
         session.isProcessing = false;
         response.bot_reply = `I'm not sure how to handle that.\n💡 **Try these examples:**\n• "Spent 500 on food"\n• "Bought shoes for 2000"\n• "Show total spending"`;
         return res.json(response);
 
     } catch (err) {
+        console.error("Critical Chat Error:", err);
         session.isProcessing = false;
         return res.json({ intent: "GeneralQuery", bot_reply: "An internal error occurred." });
     }

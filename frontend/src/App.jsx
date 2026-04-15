@@ -69,7 +69,6 @@ const Layout = ({ children }) => {
 
   const handleUpdate = async () => {
     const errors = {};
-    const sanitizedPhone = phone.replace(/\s+/g, '');
 
     // 1. Name Validation
     if (newName.trim().split(' ').length < 2) {
@@ -77,7 +76,12 @@ const Layout = ({ children }) => {
     }
 
     // 2. Phone Validation (+[Code][10 digits])
-    if (!/^\+\d{1,4}\d{10}$/.test(sanitizedPhone)) {
+    let finalPhone = phone.trim().replace(/[^\d+]/g, ''); // Remove spaces, dashes, etc.
+    if (finalPhone && !finalPhone.startsWith('+')) {
+      finalPhone = '+' + finalPhone;
+    }
+    
+    if (!/^\+\d{1,4}\d{10}$/.test(finalPhone)) {
       errors.phone = "Format: +[Code][Exactly 10 digits] (e.g. +919876543210)";
     }
 
@@ -95,7 +99,7 @@ const Layout = ({ children }) => {
       setFieldErrors({});
       await updateProfile({
         name: newName.trim(),
-        phone: sanitizedPhone,
+        phone: finalPhone,
         email: newEmail.trim()
       });
       setIsEditing(false);
@@ -188,85 +192,6 @@ const Layout = ({ children }) => {
               Logout
             </button>
           </div>
-
-          {showProfile && (
-            <div className={isNewSignup ? "profile-modal-overlay" : ""}>
-              <div className={isNewSignup ? "profile-modal-content" : "profile-dropdown"} style={{
-                position: isNewSignup ? 'relative' : 'absolute',
-                top: isNewSignup ? '0' : '80px',
-                right: isNewSignup ? '0' : '3rem',
-                zIndex: 1000,
-                background: 'var(--bg-elevated)',
-                padding: '2.5rem',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '8px',
-                width: isNewSignup ? '450px' : '320px',
-                boxShadow: 'var(--shadow-lg)'
-              }}>
-                <div className="dropdown-header" style={{ fontSize: '0.9rem', color: '#fff', fontWeight: '800', marginBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
-                  {isNewSignup ? "Profile Setup" : "Profile Details"}
-                </div>
-
-                {isNewSignup && (
-                  <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginBottom: '2rem' }}>
-                    Please complete your profile details below.
-                  </p>
-                )}
-
-                <div className="detail-item" style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Full Name</label>
-                  {isEditing ? (
-                    <input
-                      style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.name ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
-                      value={newName}
-                      onChange={(e) => { setNewName(e.target.value); if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: null })); }}
-                    />
-                  ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.name}</div>}
-                  {fieldErrors.name && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.name}</div>}
-                </div>
-
-                <div className="detail-item" style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Email Address</label>
-                  {isEditing ? (
-                    <input
-                      style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.email ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
-                      value={newEmail}
-                      onChange={(e) => { setNewEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: null })); }}
-                    />
-                  ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.email}</div>}
-                  {fieldErrors.email && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.email}</div>}
-                </div>
-
-                <div className="detail-item" style={{ marginBottom: '2rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Phone Number</label>
-                  {isEditing ? (
-                    <input
-                      style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.phone ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
-                      value={phone}
-                      onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: null })); }}
-                      placeholder="+919876543210"
-                    />
-                  ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.phone || 'Not provided'}</div>}
-                  {fieldErrors.phone && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.phone}</div>}
-                </div>
-
-                <div className="dropdown-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {isEditing ? (
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={handleUpdate} style={{ flex: 1, background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Save</button>
-                      <button onClick={() => { setIsEditing(false); setFieldErrors({}); }} style={{ flex: 1, background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--glass-border)', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Cancel</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setIsEditing(true)} style={{ background: 'var(--bg-active)', color: '#fff', border: '1px solid var(--glass-border)', padding: '0.85rem', fontWeight: '700', cursor: 'pointer', borderRadius: '4px' }}>Edit Profile</button>
-                  )}
-
-                  {!isNewSignup && (
-                    <button onClick={handleLogout} style={{ background: 'transparent', color: 'var(--error)', border: 'none', padding: '0.5rem', fontWeight: '800', cursor: 'pointer' }}>Logout</button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </header>
 
         <section className="main-viewport" style={{ padding: '0 3rem' }}>
@@ -280,6 +205,75 @@ const Layout = ({ children }) => {
 
         <Footer />
       </main>
+
+      {/* Profile Modal / Dropdown Layer */}
+      {showProfile && (
+        <div className={isNewSignup ? "profile-modal-overlay" : ""}>
+          <div className={isNewSignup ? "profile-modal-content" : "profile-dropdown"} ref={profileRef}>
+            <div className="dropdown-header" style={{ fontSize: '0.9rem', color: '#fff', fontWeight: '800', marginBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
+              {isNewSignup ? "Profile Setup" : "Profile Details"}
+            </div>
+
+            {isNewSignup && (
+              <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginBottom: '2rem' }}>
+                Please complete your profile details below to initialize your ledger account.
+              </p>
+            )}
+
+            <div className="detail-item" style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Full Name</label>
+              {isEditing ? (
+                <input
+                  style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.name ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
+                  value={newName}
+                  onChange={(e) => { setNewName(e.target.value); if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: null })); }}
+                />
+              ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.name}</div>}
+              {fieldErrors.name && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.name}</div>}
+            </div>
+
+            <div className="detail-item" style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Email Address</label>
+              {isEditing ? (
+                <input
+                  style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.email ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
+                  value={newEmail}
+                  onChange={(e) => { setNewEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: null })); }}
+                />
+              ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.email}</div>}
+              {fieldErrors.email && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.email}</div>}
+            </div>
+
+            <div className="detail-item" style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem' }}>Phone Number</label>
+              {isEditing ? (
+                <input
+                  style={{ background: 'var(--bg-active)', border: `1px solid ${fieldErrors.phone ? 'var(--error)' : 'var(--glass-border)'}`, color: '#fff', padding: '0.75rem', width: '100%', borderRadius: '4px' }}
+                  value={phone}
+                  onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: null })); }}
+                  placeholder="+919876543210"
+                />
+              ) : <div style={{ fontSize: '0.9rem', color: '#fff' }}>{user?.phone || 'Not provided'}</div>}
+              {fieldErrors.phone && <div style={{ color: 'var(--error)', fontSize: '0.7rem', marginTop: '0.25rem' }}>{fieldErrors.phone}</div>}
+            </div>
+
+            <div className="dropdown-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {isEditing ? (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={handleUpdate} style={{ flex: 1, background: 'var(--accent)', color: '#000', border: 'none', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Save</button>
+                  <button onClick={() => { setIsEditing(false); setFieldErrors({}); }} style={{ flex: 1, background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--glass-border)', padding: '1rem', fontWeight: '800', cursor: 'pointer', borderRadius: '4px' }}>Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setIsEditing(true)} style={{ background: 'var(--bg-active)', color: '#fff', border: '1px solid var(--glass-border)', padding: '0.85rem', fontWeight: '700', cursor: 'pointer', borderRadius: '4px' }}>Edit Profile</button>
+              )}
+
+              {!isNewSignup && (
+                <button onClick={handleLogout} style={{ background: 'transparent', color: 'var(--error)', border: 'none', padding: '0.5rem', fontWeight: '800', cursor: 'pointer' }}>Logout</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

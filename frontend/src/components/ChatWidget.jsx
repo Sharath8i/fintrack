@@ -23,6 +23,7 @@ const TASK_MENU = [
 
 function TransactionDraftCard({ data, onConfirm, onEdit }) {
   if (!data) return null;
+  const isSaved = data.isSaved || false;
   const merchant = data.description || "Unspecified";
   const category = data.category || "General";
   const cardType = data.card_type || "Standard";
@@ -86,38 +87,52 @@ function TransactionDraftCard({ data, onConfirm, onEdit }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <button
-          onClick={onConfirm}
-          style={{
-            flex: 2,
-            background: '#ffcc00',
-            border: 'none',
-            color: '#000',
-            padding: '12px',
-            fontSize: 10,
-            fontWeight: 900,
-            letterSpacing: 1.5,
-            borderRadius: 2,
-            cursor: 'pointer'
-          }}
-        >SAVE TO LEDGER</button>
-        <button
-          onClick={onEdit}
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: '1px solid #222',
-            color: '#666',
-            padding: '12px',
-            fontSize: 10,
-            fontWeight: 900,
-            letterSpacing: 1.5,
-            borderRadius: 2,
-            cursor: 'pointer'
-          }}
-        >AMEND</button>
-      </div>
+      {isSaved ? (
+        <div style={{
+          background: 'rgba(255, 204, 0, 0.1)',
+          border: '1px solid #ffcc00',
+          color: '#ffcc00',
+          padding: '12px',
+          fontSize: 10,
+          fontWeight: 900,
+          textAlign: 'center',
+          letterSpacing: 1.5,
+          borderRadius: 2
+        }}>✅ LEDGERED & VERIFIED</div>
+      ) : (
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 2,
+              background: '#ffcc00',
+              border: 'none',
+              color: '#000',
+              padding: '12px',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: 1.5,
+              borderRadius: 2,
+              cursor: 'pointer'
+            }}
+          >SAVE TO LEDGER</button>
+          <button
+            onClick={onEdit}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: '1px solid #222',
+              color: '#666',
+              padding: '12px',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: 1.5,
+              borderRadius: 2,
+              cursor: 'pointer'
+            }}
+          >AMEND</button>
+        </div>
+      )}
     </div>
   );
 }
